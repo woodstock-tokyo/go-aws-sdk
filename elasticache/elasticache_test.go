@@ -25,11 +25,16 @@ func TestSet(t *testing.T) {
 	assert.Nil(t, err, "set should not return error")
 }
 
+func TestSetTwice(t *testing.T) {
+	err := svc.Set("test", []byte("abcde"))
+	assert.Nil(t, err, "set should not return error")
+}
+
 // TestGet test redis set
 func TestGet(t *testing.T) {
 	value, err := svc.Get("test")
 	assert.Nil(t, err, "get should not return error")
-	assert.Equal(t, value, []byte("abc"), "get should return expected value")
+	assert.Equal(t, value, []byte("abcde"), "get should return expected value")
 }
 
 // TestDelete test redis delete
