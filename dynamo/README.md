@@ -42,6 +42,7 @@ func main() {
   Or init thru DSL
   svc := dynamo.NewService(config.S3.AccessKeyID, config.S3.SecretAccessKey)
 	svc.SetRegion(config.S3.Region)
+  db := svc.Instance()
   */
 
 	table := db.Table("Widgets")

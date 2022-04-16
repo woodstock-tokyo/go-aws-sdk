@@ -13,7 +13,7 @@ go get -u github.com/woodstock-tokyo/go-aws-sdk
 example:
 
 ```Go
-import github.com/woodstock-tokyo/go-aws-sdk
+import "github.com/woodstock-tokyo/go-aws-sdk/s3"
 
 func main() {
     svc := NewService("<<access key id>>", "<<secret key>>")
@@ -30,83 +30,59 @@ func main() {
 }
 ```
 
-## SQS
+## Dynamodb
 
-### SQS Send Message
+example:
 
 ```Go
-import bitbucket.org/indiesquare/indiesquare-aws/sqs
+package dynamo
 
-func main() {
-    svc := NewService("<<access key id>>", "<<secret key>>")
-    svc.SetRegion("ap-northeast-1")
-    svc.SetQueueURL("<<queue url>>")
+import (
+	"time"
 
-    message := &TestMessage{
-        Foo: "test",
-        Bar: Bar{
-            Name: "Oda Nobunaga",
-            Age:  34,
-            Time: time.Now(),
-        },
-    }
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/woodstock-tokyo/go-aws-sdk/dynamo"
+)
 
-    encodedMessage, _ := json.Marshal(message)
-    opts := &SendOptions{
-        Message:        encodedMessage,
-        MessageGroupID: "Unit-Testing",
-    }
+// Use struct tags much like the standard JSON library,
+// you can embed anonymous structs too!
+type widget struct {
+	UserID int       // Hash key, a.k.a. partition key
+	Time   time.Time // Range key, a.k.a. sort key
 
-    resp := svc.Send(opts)
-    if resp.Error != nil {
-        t.Error(resp.Error)
-    }
+	Msg       string              `dynamo:"Message"`    // Change name in the database
+	Count     int                 `dynamo:",omitempty"` // Omits if zero value
+	Children  []widget            // Lists
+	Friends   []string            `dynamo:",set"` // Sets
+	Set       map[string]struct{} `dynamo:",set"` // Map sets, too!
+	SecretKey string              `dynamo:"-"`    // Ignored
 }
-```
-
-### SQS Receive Message
-
-```Go
-import bitbucket.org/indiesquare/indiesquare-aws/sqs
 
 func main() {
-    svc := NewService("<<access key id>>", "<<secret key>>")
-    svc.SetRegion("ap-northeast-1")
-    svc.SetQueueURL("<<queue url>>")
+  svc := dynamo.NewService(config.S3.AccessKeyID, config.S3.SecretAccessKey)
+	svc.SetRegion(config.S3.Region)
+  db := svc.Instance()
 
-    svc := NewService("<<access key id>>", "<<secret access key>>")
-    svc.SetRegion("ap-northeast-1")
-    svc.SetQueueURL(Q)
+  table := db.Table("Widgets")
 
-    opts := new(ReceiveOptions)
+	// put item
+	w := widget{UserID: 613, Time: time.Now(), Msg: "hello"}
+	err := table.Put(w).Run()
 
-    resp := svc.Receive(opts)
-    if resp.Error != nil {
-        t.Error(resp.Error)
-    } else {
-        receiptHandle = resp.ReceiptHandle
-    }
-}
-```
+	// get the same item
+	var result widget
+	err = table.Get("UserID", w.UserID).
+		Range("Time", dynamo.Equal, w.Time).
+		One(&result)
 
-### SQS Delete Message
+	// get all items
+	var results []widget
+	err = table.Scan().All(&results)
 
-```Go
-import bitbucket.org/indiesquare/indiesquare-aws/sqs
-
-func main() {
-    svc := NewService("<<access key id>>", "<<secret key>>")
-    svc.SetRegion("ap-northeast-1")
-    svc.SetQueueURL("<<queue url>>")
-
-    opts := &DeleteOptions{
-        ReceiptHandle: receiptHandle,
-    }
-
-    resp := svc.Delete(opts)
-    if resp.Error != nil {
-        t.Error(resp.Error)
-    }
+	// use placeholders in filter expressions (see Expressions section below)
+	var filtered []widget
+	err = table.Scan().Filter("'Count' > ?", 10).All(&filtered)
 }
 ```
 
