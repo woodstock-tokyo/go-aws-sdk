@@ -37,6 +37,13 @@ type widget struct {
 func main() {
 	sess := session.Must(session.NewSession())
 	db := dynamo.New(sess, &aws.Config{Region: aws.String("us-west-2")})
+
+  /*
+  Or init thru DSL
+  svc := dynamo.NewService(config.S3.AccessKeyID, config.S3.SecretAccessKey)
+	svc.SetRegion(config.S3.Region)
+  */
+
 	table := db.Table("Widgets")
 
 	// put item
