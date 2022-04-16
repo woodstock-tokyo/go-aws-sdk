@@ -41,6 +41,17 @@ func (s *Service) GetRegion() string {
 	return s.context.region
 }
 
+// SetRegion set endpoint
+func (s *Service) SetEndpoint(endpoint string) {
+	s.context.check()
+	s.context.endpoint = endpoint
+}
+
+// GetRegion get endpoint
+func (s *Service) GetEndpoint() string {
+	return s.context.endpoint
+}
+
 var once sync.Once
 var instance *DB
 
@@ -49,6 +60,7 @@ func (s *Service) Instance() *DB {
 	once.Do(func() {
 		sess := session.New(&aws.Config{
 			Region:      aws.String(s.GetRegion()),
+			Endpoint:    aws.String(s.GetEndpoint()),
 			Credentials: credentials.NewStaticCredentials(s.accessKey, s.accessSecret, ""),
 		})
 
