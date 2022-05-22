@@ -158,8 +158,7 @@ func (s *Service) Upload(opts *UploadOptions) (resp *UploadResponse) {
 	objname := resolveObjName(opts.SubDirectory, filenamme)
 	contenttype, err := resolveContentType(filenamme)
 	if err != nil {
-		resp.Error = fmt.Errorf("failed to resolve local file content type")
-		return
+		contenttype = ""
 	}
 
 	file, err := os.Open(filenamme)
@@ -179,7 +178,10 @@ func (s *Service) Upload(opts *UploadOptions) (resp *UploadResponse) {
 		Key:           aws.String(objname),
 		Body:          bytes.NewReader(buffer),
 		ContentLength: aws.Int64(size),
-		ContentType:   aws.String(contenttype),
+	}
+
+	if contenttype != "" {
+		putobjectinput.ContentType = aws.String(contenttype)
 	}
 
 	if opts.Attachment {
