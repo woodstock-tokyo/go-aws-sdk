@@ -29,7 +29,7 @@ const (
 	KMS EncrptionType = "aws:kms"
 )
 
-// UploadOptions upload response
+// UploadOptions upload options
 type UploadOptions struct {
 	// filename to upload
 	FileName string
@@ -52,6 +52,27 @@ type UploadResponse struct {
 	// Location location of uploaded file
 	Location string
 	Error    error
+}
+
+// ListOptions list obj options
+type ListOptions struct {
+	// assign prefix to list, otherwise object will be saved under root
+	Prefix string
+	// Timeout upload timeout
+	Timeout time.Duration
+}
+
+// ListResponse list response
+type ListResponse struct {
+	Objects []ListObject
+	Error   error
+}
+
+// ListObject list object
+type ListObject struct {
+	Key          string
+	LastModified time.Time
+	Size         int64
 }
 
 // Context context includes endpoint, region and bucket info
@@ -197,6 +218,41 @@ func (s *Service) AsyncUpload(opts *UploadOptions) (respchan chan<- *UploadRespo
 		respchan <- s.Upload(opts)
 	}()
 	return respchan
+}
+
+// List list files
+func (s *Service) List(opts *ListOptions) (resp *ListResponse) {
+	resp = &ListResponse{
+		Objects: []ListObject{},
+	}
+
+	client := s.client()
+	t := 10 * time.Second
+	if opts.Timeout > 0 {
+		t = opts.Timeout
+	}
+	ctx, cancel := goctx.WithTimeout(goctx.Background(), t)
+	defer cancel()
+
+	listobjinput := &s3.ListObjectsInput{
+		Bucket: aws.String(s.GetBucket()),
+		Prefix: aws.String(opts.Prefix),
+	}
+
+	list, err := client.ListObjectsWithContext(ctx, listobjinput)
+	if err != nil {
+		resp.Error = err
+	} else {
+		for _, obj := range list.Contents {
+			resp.Objects = append(resp.Objects, ListObject{
+				Key:          aws.StringValue(obj.Key),
+				LastModified: aws.TimeValue(obj.LastModified),
+				Size:         aws.Int64Value(obj.Size),
+			})
+		}
+	}
+
+	return
 }
 
 func resolveObjName(subdiresctory string, fullfilename string) string {
