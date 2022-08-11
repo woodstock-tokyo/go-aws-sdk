@@ -131,7 +131,7 @@ var instance *s3.S3
 // client init client
 func (s *Service) client() *s3.S3 {
 	once.Do(func() {
-		sess := session.New(&aws.Config{
+		sess, _ := session.NewSession(&aws.Config{
 			Region:      aws.String(s.GetRegion()),
 			Credentials: credentials.NewStaticCredentials(s.accessKey, s.accessSecret, ""),
 		})
