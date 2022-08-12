@@ -1,6 +1,8 @@
 package cloudsearch
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
 	"sync"
 	"time"
@@ -20,9 +22,9 @@ type CloudSearchOptions struct {
 	// Sort by
 	Sort *CloudSearchSortOption
 	// Limit search limit
-	Limit *int64
+	Limit int64
 	// Offset search offset
-	Offset *int64
+	Offset int64
 	// Timeout search timeout
 	Timeout time.Duration
 }
@@ -51,9 +53,10 @@ type CloudSearchResponse struct {
 	Found int64
 	// Start start from
 	Start int64
-	// results
+	// Results search results
 	Results []CloudSearchResponseItem
-	Error   error
+	// Error error
+	Error error
 }
 
 type CloudSearchResponseItem struct {
@@ -64,6 +67,37 @@ type CloudSearchResponseItem struct {
 
 func (so CloudSearchSortOption) String() string {
 	return fmt.Sprintf("%s %s", so.SortBy, so.Order)
+}
+
+type CloudSearchDocumentUploadOptions struct {
+	// ContentType content type of document
+	ContentType string
+	// Content content to be uploaded
+	Content []CloudSearchDocumentUploadContent
+	// Timeout search timeout
+	Timeout time.Duration
+}
+
+type CloudSearchDocumentUploadContent struct {
+	Fields any                           `json:"fields"`
+	Type   CloudSearchDocumentUploadType `json:"type"`
+	ID     int64                         `json:"id"`
+}
+
+type CloudSearchDocumentUploadType string
+
+const (
+	CloudSearchDocumentUploadTypeAdd    CloudSearchDocumentUploadType = "add"
+	CloudSearchDocumentUploadTypeDelete CloudSearchDocumentUploadType = "delete"
+)
+
+type CloudSearchDocumentUploadResponse struct {
+	// Error error
+	Error error
+	// Adds documents added
+	Adds int64
+	// Deletes documents deleted
+	Deletes int64
 }
 
 // Context context includes endpoint, region and bucket info
@@ -142,13 +176,13 @@ func (s *Service) Search(opts *CloudSearchOptions) (resp *CloudSearchResponse) {
 	}
 
 	var limit int64 = 100
-	if opts.Limit != nil {
-		limit = *opts.Limit
+	if opts.Limit != 0 {
+		limit = opts.Limit
 	}
 
 	var offset int64 = 0
-	if opts.Offset != nil {
-		offset = *opts.Offset
+	if opts.Offset != 0 {
+		offset = opts.Offset
 	}
 
 	ctx, cancel := goctx.WithTimeout(goctx.Background(), t)
@@ -186,6 +220,55 @@ func (s *Service) AsyncSearch(opts *CloudSearchOptions) (respchan chan<- *CloudS
 	respchan = make(chan *CloudSearchResponse)
 	go func() {
 		respchan <- s.Search(opts)
+	}()
+	return respchan
+}
+
+// Upload document upload
+func (s *Service) Upload(opts *CloudSearchDocumentUploadOptions) (resp *CloudSearchDocumentUploadResponse) {
+	resp = new(CloudSearchDocumentUploadResponse)
+	client := s.client()
+
+	content, err := json.Marshal(opts.Content)
+	if err != nil {
+		resp.Error = err
+		return
+	}
+
+	t := 15 * time.Second
+	if opts.Timeout > 0 {
+		t = opts.Timeout
+	}
+
+	contentType := "application/json"
+	if opts.ContentType != "" {
+		contentType = opts.ContentType
+	}
+
+	ctx, cancel := goctx.WithTimeout(goctx.Background(), t)
+	defer cancel()
+
+	uploadinput := &cloudsearchdomain.UploadDocumentsInput{
+		ContentType: aws.String(contentType),
+		Documents:   bytes.NewReader(content),
+	}
+
+	output, err := client.UploadDocumentsWithContext(aws.Context(ctx), uploadinput)
+	if err != nil {
+		resp.Error = err
+		return
+	}
+
+	resp.Adds = *output.Adds
+	resp.Deletes = *output.Deletes
+	return
+}
+
+// AsyncUpload async upload
+func (s *Service) AsyncUpload(opts *CloudSearchDocumentUploadOptions) (respchan chan<- *CloudSearchDocumentUploadResponse) {
+	respchan = make(chan *CloudSearchDocumentUploadResponse)
+	go func() {
+		respchan <- s.Upload(opts)
 	}()
 	return respchan
 }
