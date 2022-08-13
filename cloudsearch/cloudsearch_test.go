@@ -110,6 +110,7 @@ func TestSearchAgain(t *testing.T) {
 func initService() *Service {
 	svc := NewService(os.Getenv("WS_CLOUDSEARCH_AWS_ACCESS_KEY_ID"), os.Getenv("WS_CLOUDSEARCH_AWS_SECRET_ACCESS_KEY"))
 	svc.SetRegion("ap-northeast-1")
-	svc.SetEndpoint("search-woodstock-stg-4xctkbk7zdvtmh35j7hsaqaiwi.ap-northeast-1.amazonaws.com")
+	svc.SetSearchEndpoint("search-woodstock-stg-4xctkbk7zdvtmh35j7hsaqaiwi.ap-northeast-1.amazonaws.com")
+	svc.SetDocumentEndpoint("doc-woodstock-stg-4xctkbk7zdvtmh35j7hsaqaiwi.ap-northeast-1.cloudsearch.amazonaws.com")
 	return svc
 }

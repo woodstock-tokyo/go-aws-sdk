@@ -102,8 +102,9 @@ type CloudSearchDocumentUploadResponse struct {
 
 // Context context includes endpoint, region and bucket info
 type context struct {
-	endpoint string
-	region   string
+	searchEndpoint   string
+	documentEndpoint string
+	region           string
 }
 
 // Service service includes context and credentials
@@ -122,15 +123,26 @@ func NewService(key, secret string) *Service {
 	}
 }
 
-// GetEndpoint get endpoint
-func (s *Service) GetEndpoint() string {
-	return s.context.endpoint
+// GetSearchEndpoint get search endpoint
+func (s *Service) GetSearchEndpoint() string {
+	return s.context.searchEndpoint
 }
 
-// SetEndpoint set endpoint
-func (s *Service) SetEndpoint(endpoint string) {
+// SetSearchEndpoint set search endpoint
+func (s *Service) SetSearchEndpoint(endpoint string) {
 	s.context.check()
-	s.context.endpoint = endpoint
+	s.context.searchEndpoint = endpoint
+}
+
+// GetDocumentEndpoint get document endpoint
+func (s *Service) GetDocumentEndpoint() string {
+	return s.context.documentEndpoint
+}
+
+// SetDocumentEndpoint set document endpoint
+func (s *Service) SetDocumentEndpoint(endpoint string) {
+	s.context.check()
+	s.context.documentEndpoint = endpoint
 }
 
 // SetRegion set region
@@ -148,11 +160,16 @@ var once sync.Once
 var instance *cloudsearchdomain.CloudSearchDomain
 
 // client init client
-func (s *Service) client() *cloudsearchdomain.CloudSearchDomain {
+func (s *Service) client(search bool) *cloudsearchdomain.CloudSearchDomain {
+	endpoint := s.context.searchEndpoint
+	if !search {
+		endpoint = s.context.documentEndpoint
+	}
+
 	once.Do(func() {
 		sess, _ := session.NewSession(&aws.Config{
 			Region:      aws.String(s.GetRegion()),
-			Endpoint:    aws.String(s.context.endpoint),
+			Endpoint:    aws.String(endpoint),
 			Credentials: credentials.NewStaticCredentials(s.accessKey, s.accessSecret, ""),
 		})
 
@@ -165,7 +182,7 @@ func (s *Service) client() *cloudsearchdomain.CloudSearchDomain {
 // Search search
 func (s *Service) Search(opts *CloudSearchOptions) (resp *CloudSearchResponse) {
 	resp = new(CloudSearchResponse)
-	client := s.client()
+	client := s.client(true)
 	t := 15 * time.Second
 	if opts.Timeout > 0 {
 		t = opts.Timeout
@@ -227,7 +244,7 @@ func (s *Service) AsyncSearch(opts *CloudSearchOptions) (respchan chan<- *CloudS
 // Upload document upload
 func (s *Service) Upload(opts *CloudSearchDocumentUploadOptions) (resp *CloudSearchDocumentUploadResponse) {
 	resp = new(CloudSearchDocumentUploadResponse)
-	client := s.client()
+	client := s.client(false)
 
 	content, err := json.Marshal(opts.Content)
 	if err != nil {
