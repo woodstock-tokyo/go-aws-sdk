@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
@@ -20,7 +21,8 @@ type CloudSearchOptions struct {
 	// query to search
 	Query string
 	// Sort by
-	Sort *CloudSearchSortOption
+	Sort      *CloudSearchSortOption
+	Highlight []CloudSearchHighlightOption
 	// Limit search limit
 	Limit int64
 	// Offset search offset
@@ -45,6 +47,23 @@ type CloudSearchSortOption struct {
 var DefaultCloudSearchSortOption = CloudSearchSortOption{
 	SortBy: "_score",
 	Order:  CloudSearchSortOrderDesc,
+}
+
+type CloudSearchHighlightOption struct {
+	Field  string
+	Format CloudSearchHighlightFormat
+}
+
+type CloudSearchHighlightFormat string
+
+const (
+	CloudSearchHighlightFormatHTML = "html"
+	CloudSearchHighlightFormatText = "text"
+)
+
+// String to highlight query string { "actors": {}, "title": {"format": "text","max_phrases": 2,"pre_tag": "","post_tag": // ""} }
+func (h CloudSearchHighlightOption) String() string {
+	return fmt.Sprintf("\"%s\": {\"format\": \"%s\"}", h.Field, h.Format)
 }
 
 // CloudSearchResponse cloud search response
@@ -202,14 +221,27 @@ func (s *Service) Search(opts *CloudSearchOptions) (resp *CloudSearchResponse) {
 		offset = opts.Offset
 	}
 
+	var highlightSb strings.Builder
+	highlightSb.WriteString("{")
+	for i, opt := range opts.Highlight {
+		if i == 0 {
+			highlightSb.WriteString(opt.String())
+		} else {
+			highlightSb.WriteString(fmt.Sprintf(", %s", opt.String()))
+		}
+	}
+	highlightSb.WriteString("}")
+	highlight := highlightSb.String()
+
 	ctx, cancel := goctx.WithTimeout(goctx.Background(), t)
 	defer cancel()
 
 	searchinput := &cloudsearchdomain.SearchInput{
-		Query: aws.String(opts.Query),
-		Sort:  aws.String(opts.Sort.String()),
-		Start: aws.Int64(offset),
-		Size:  aws.Int64(limit),
+		Query:     aws.String(opts.Query),
+		Sort:      aws.String(opts.Sort.String()),
+		Start:     aws.Int64(offset),
+		Size:      aws.Int64(limit),
+		Highlight: aws.String(highlight),
 	}
 
 	output, err := client.SearchWithContext(aws.Context(ctx), searchinput)

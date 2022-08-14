@@ -66,6 +66,16 @@ func TestSearch(t *testing.T) {
 	svc := initService()
 	opts := &CloudSearchOptions{
 		Query: "welcome",
+		Highlight: []CloudSearchHighlightOption{
+			{
+				Field:  "content_ja",
+				Format: CloudSearchHighlightFormatHTML,
+			},
+			{
+				Field:  "content_en",
+				Format: CloudSearchHighlightFormatHTML,
+			},
+		},
 	}
 
 	resp := svc.Search(opts)
