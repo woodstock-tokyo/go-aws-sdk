@@ -221,27 +221,29 @@ func (s *Service) Search(opts *CloudSearchOptions) (resp *CloudSearchResponse) {
 		offset = opts.Offset
 	}
 
-	var highlightSb strings.Builder
-	highlightSb.WriteString("{")
-	for i, opt := range opts.Highlight {
-		if i == 0 {
-			highlightSb.WriteString(opt.String())
-		} else {
-			highlightSb.WriteString(fmt.Sprintf(", %s", opt.String()))
-		}
-	}
-	highlightSb.WriteString("}")
-	highlight := highlightSb.String()
-
 	ctx, cancel := goctx.WithTimeout(goctx.Background(), t)
 	defer cancel()
 
 	searchinput := &cloudsearchdomain.SearchInput{
-		Query:     aws.String(opts.Query),
-		Sort:      aws.String(opts.Sort.String()),
-		Start:     aws.Int64(offset),
-		Size:      aws.Int64(limit),
-		Highlight: aws.String(highlight),
+		Query: aws.String(opts.Query),
+		Sort:  aws.String(opts.Sort.String()),
+		Start: aws.Int64(offset),
+		Size:  aws.Int64(limit),
+	}
+
+	if len(opts.Highlight) > 0 {
+		var highlightSb strings.Builder
+		highlightSb.WriteString("{")
+		for i, opt := range opts.Highlight {
+			if i == 0 {
+				highlightSb.WriteString(opt.String())
+			} else {
+				highlightSb.WriteString(fmt.Sprintf(", %s", opt.String()))
+			}
+		}
+		highlightSb.WriteString("}")
+		highlight := highlightSb.String()
+		searchinput.Highlight = aws.String(highlight)
 	}
 
 	output, err := client.SearchWithContext(aws.Context(ctx), searchinput)
