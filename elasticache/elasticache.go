@@ -12,9 +12,34 @@ type Service struct {
 	redisPool *redis.Pool
 }
 
+// dialOptions internal dial options
+type dialOptions struct {
+	username string
+	password string
+}
+
+// DialOption specifies an option for dialing a Redis server.
+type DialOption struct {
+	f func(*dialOptions)
+}
+
+// DialUserName specifies the username to use when connecting to elastcache
+func DialUserName(username string) DialOption {
+	return DialOption{func(do *dialOptions) {
+		do.username = username
+	}}
+}
+
+// DialPassword specifies the password to use when connecting to elastcache
+func DialPassword(password string) DialOption {
+	return DialOption{func(do *dialOptions) {
+		do.password = password
+	}}
+}
+
 // NewService service initializer
-func NewService(host string) *Service {
-	pool := newRedisPool(host)
+func NewService(host string, options ...DialOption) *Service {
+	pool := newRedisPool(host, options...)
 	return &Service{
 		redisPool: pool,
 	}
@@ -120,16 +145,25 @@ func (s *Service) Incr(counterKey string) (int, error) {
 	return redis.Int(conn.Do("INCR", counterKey))
 }
 
-func newRedisPool(host string) *redis.Pool {
+func newRedisPool(host string, options ...DialOption) *redis.Pool {
+	do := dialOptions{}
+	for _, option := range options {
+		option.f(&do)
+	}
+
 	return &redis.Pool{
 		MaxIdle:     3,
 		IdleTimeout: 240 * time.Second,
 		Dial: func() (redis.Conn, error) {
-			c, err := redis.Dial("tcp", host)
-			if err != nil {
-				return nil, err
+			dailOptions := []redis.DialOption{}
+			if do.username != "" {
+				dailOptions = append(dailOptions, redis.DialUsername(do.username))
 			}
-			return c, err
+			if do.password != "" {
+				dailOptions = append(dailOptions, redis.DialPassword(do.password))
+			}
+
+			return redis.Dial("tcp", host, dailOptions...)
 		},
 		TestOnBorrow: func(c redis.Conn, t time.Time) error {
 			_, err := c.Do("PING")
