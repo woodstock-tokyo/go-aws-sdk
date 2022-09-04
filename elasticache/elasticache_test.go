@@ -1,6 +1,7 @@
 package elasticache
 
 import (
+	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -9,8 +10,7 @@ import (
 var svc *Service
 
 func init() {
-	// localhost
-	svc = NewService(":6379")
+	svc = NewService("redis-11725.c294.ap-northeast-1-2.ec2.cloud.redislabs.com:11725", DialPassword(os.Getenv("WS_ELASTICACHE_PASSWORD")))
 }
 
 // TestPing test redis ping
