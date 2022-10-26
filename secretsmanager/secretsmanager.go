@@ -5,6 +5,7 @@ import (
 	"sync"
 
 	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/secretsmanager"
 )
@@ -22,13 +23,17 @@ type context struct {
 
 // Service service includes context and credentials
 type Service struct {
-	context *context
+	context      *context
+	accessKey    string
+	accessSecret string
 }
 
 // NewService service initializer
-func NewService() *Service {
+func NewService(key, secret string) *Service {
 	return &Service{
-		context: new(context),
+		context:      new(context),
+		accessKey:    key,
+		accessSecret: secret,
 	}
 }
 
@@ -50,7 +55,8 @@ var instance *secretsmanager.SecretsManager
 func (s *Service) client() *secretsmanager.SecretsManager {
 	once.Do(func() {
 		sess, _ := session.NewSession(&aws.Config{
-			Region: aws.String(s.GetRegion()),
+			Region:      aws.String(s.GetRegion()),
+			Credentials: credentials.NewStaticCredentials(s.accessKey, s.accessSecret, ""),
 		})
 		instance = secretsmanager.New(sess)
 	})
