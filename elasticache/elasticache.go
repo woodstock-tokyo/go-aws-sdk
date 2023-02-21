@@ -91,6 +91,24 @@ func (s *Service) Set(key string, value []byte) error {
 	return err
 }
 
+// SetExpiry set with expiry
+func (s *Service) SetExpiry(key string, value []byte, expireSecond uint) error {
+	conn := s.redisPool.Get()
+	defer conn.Close()
+
+	_, err := conn.Do("SET", key, value, "EX", expireSecond)
+	if err != nil {
+		v := string(value)
+		if len(v) > 15 {
+			v = v[0:12] + "..."
+		}
+
+		return fmt.Errorf("error setting key with expire %s to %s: %v", key, v, err)
+	}
+
+	return err
+}
+
 // Exists exist
 func (s *Service) Exists(key string) (bool, error) {
 	conn := s.redisPool.Get()
