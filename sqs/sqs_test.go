@@ -10,7 +10,7 @@ import (
 
 // TestSendMessage test send message
 func TestSendMessage(t *testing.T) {
-	svc := NewService(os.Getenv("WS_S3_AWS_ACCESS_KEY_ID"), os.Getenv("WS_S3_AWS_SECRET_ACCESS_KEY"))
+	svc := NewService(os.Getenv("WS_SQS_AWS_ACCESS_KEY_ID"), os.Getenv("WS_SQS_AWS_SECRET_ACCESS_KEY"))
 	svc.SetRegion("ap-northeast-1")
 	svc.SetQueue("push-notification-stg")
 
@@ -24,7 +24,7 @@ func TestSendMessage(t *testing.T) {
 
 // TestReceiveMessage test receive message
 func TestReceiveMessage(t *testing.T) {
-	svc := NewService(os.Getenv("WS_S3_AWS_ACCESS_KEY_ID"), os.Getenv("WS_S3_AWS_SECRET_ACCESS_KEY"))
+	svc := NewService(os.Getenv("WS_SQS_AWS_ACCESS_KEY_ID"), os.Getenv("WS_SQS_AWS_SECRET_ACCESS_KEY"))
 	svc.SetRegion("ap-northeast-1")
 	svc.SetQueue("push-notification-stg")
 
