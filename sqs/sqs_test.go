@@ -49,3 +49,21 @@ func TestReceiveMessage(t *testing.T) {
 	deleteResp := svc.DeleteMessage(deleteOpts)
 	assert.NoError(t, deleteResp.Error)
 }
+
+// TestGetQueueAttributes test get queue attributes
+func TestGetQueueAttributes(t *testing.T) {
+	svc := NewService(os.Getenv("WS_SQS_AWS_ACCESS_KEY_ID"), os.Getenv("WS_SQS_AWS_SECRET_ACCESS_KEY"))
+	svc.SetRegion("ap-northeast-1")
+	svc.SetQueue("push-notification-stg")
+
+	attributeName := "ApproximateNumberOfMessages"
+	attributesOpts := &GetQueueAttributesOptions{
+		AttributeNames: []*string{&attributeName},
+	}
+
+	attributesResp := svc.GetQueueAttributes(attributesOpts)
+	assert.NoError(t, attributesResp.Error)
+
+	count := attributesResp.Attributes["ApproximateNumberOfMessages"]
+	assert.EqualValues(t, "0", *count)
+}

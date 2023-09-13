@@ -48,6 +48,18 @@ type DeleteMessageResponse struct {
 	Error error
 }
 
+// GetQueueAttributesOptions get queue attributes options
+type GetQueueAttributesOptions struct {
+	AttributeNames []*string
+	Timeout        time.Duration
+}
+
+// GetQueueAttributesResponse get queue attributes response
+type GetQueueAttributesResponse struct {
+	Error      error
+	Attributes map[string]*string
+}
+
 type ReceiveMessage struct {
 	Message       string
 	ReceiptHandle string
@@ -228,4 +240,29 @@ func (c *context) check() {
 	if c == nil {
 		panic("invalid context")
 	}
+}
+
+// CountMessage count messages in a queue
+func (s *Service) GetQueueAttributes(opts *GetQueueAttributesOptions) (resp *GetQueueAttributesResponse) {
+	resp = new(GetQueueAttributesResponse)
+
+	client := s.client()
+	t := 30 * time.Second
+	if opts.Timeout > 0 {
+		t = opts.Timeout
+	}
+	ctx, cancel := goctx.WithTimeout(goctx.Background(), t)
+	defer cancel()
+
+	attributes, err := client.GetQueueAttributesWithContext(ctx, &sqs.GetQueueAttributesInput{
+		QueueUrl:       aws.String(s.GetQueue()),
+		AttributeNames: opts.AttributeNames,
+	})
+
+	if err != nil {
+		resp.Error = err
+	}
+
+	resp.Attributes = attributes.Attributes
+	return
 }
