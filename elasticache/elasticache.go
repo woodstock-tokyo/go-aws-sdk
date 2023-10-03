@@ -1,7 +1,10 @@
 package elasticache
 
 import (
+	"context"
+	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/gomodule/redigo/redis"
@@ -75,6 +78,40 @@ func (s *Service) Get(key string) ([]byte, error) {
 	return data, err
 }
 
+// MGet get
+func (s *Service) MGet(ctx context.Context, keys ...string) (map[string][]byte, error) {
+	conn, err := s.redisPool.GetContext(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("error getting connection: %w", err)
+	}
+	defer func(conn redis.Conn) {
+		_ = conn.Close()
+	}(conn)
+
+	args := make([]any, len(keys))
+	for i, key := range keys {
+		args[i] = key
+	}
+
+	values, err := redis.Values(conn.Do("MGET", args...))
+	if err != nil {
+		return nil, fmt.Errorf("error getting keys %s: %w", strings.Join(keys, " "), err)
+	}
+
+	data := make(map[string][]byte, len(keys))
+	if len(keys) != len(values) {
+		return nil, errors.New("key and value length mismatch")
+	}
+
+	for i := 0; i < len(keys); i++ {
+		if valueBites, ok := values[i].([]byte); ok {
+			data[keys[i]] = valueBites
+		}
+	}
+
+	return data, err
+}
+
 // Set set
 func (s *Service) Set(key string, value []byte) error {
 	conn := s.redisPool.Get()
@@ -91,6 +128,24 @@ func (s *Service) Set(key string, value []byte) error {
 	return err
 }
 
+// SetContext set with a context
+func (s *Service) SetContext(ctx context.Context, key string, value []byte) error {
+	conn, err := s.redisPool.GetContext(ctx)
+	if err != nil {
+		return fmt.Errorf("error getting connection: %w", err)
+	}
+	defer func(conn redis.Conn) {
+		_ = conn.Close()
+	}(conn)
+
+	_, err = conn.Do("SET", key, value)
+	if err != nil {
+		return fmt.Errorf("error setting key %s : %w", key, err)
+	}
+
+	return err
+}
+
 // SetExpiry set with expiry
 func (s *Service) SetExpiry(key string, value []byte, expireSecond uint) error {
 	conn := s.redisPool.Get()
@@ -104,6 +159,24 @@ func (s *Service) SetExpiry(key string, value []byte, expireSecond uint) error {
 		}
 
 		return fmt.Errorf("error setting key with expire %s to %s: %v", key, v, err)
+	}
+
+	return err
+}
+
+// SetExpiryContext set with expiry and context
+func (s *Service) SetExpiryContext(ctx context.Context, key string, value []byte, expireSecond uint) error {
+	conn, err := s.redisPool.GetContext(ctx)
+	if err != nil {
+		return fmt.Errorf("error getting connection: %w", err)
+	}
+	defer func(conn redis.Conn) {
+		_ = conn.Close()
+	}(conn)
+
+	_, err = conn.Do("SET", key, value, "EX", expireSecond)
+	if err != nil {
+		return fmt.Errorf("error setting key with expire %s : %w", key, err)
 	}
 
 	return err
