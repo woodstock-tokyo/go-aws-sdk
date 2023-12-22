@@ -182,6 +182,29 @@ func (s *Service) SetExpiryContext(ctx context.Context, key string, value []byte
 	return err
 }
 
+// MSetContext multi set with a context
+func (s *Service) MSetContext(ctx context.Context, keyValues map[string][]byte) error {
+	conn, err := s.redisPool.GetContext(ctx)
+	if err != nil {
+		return fmt.Errorf("error getting connection: %w", err)
+	}
+	defer func(conn redis.Conn) {
+		_ = conn.Close()
+	}(conn)
+
+	args := make([]any, len(keyValues)*2)
+	for key, value := range keyValues {
+		args = append(args, key, value)
+	}
+
+	_, err = conn.Do("MSET", args...)
+	if err != nil {
+		return fmt.Errorf("mset error : %w", err)
+	}
+
+	return err
+}
+
 // Exists exist
 func (s *Service) Exists(key string) (bool, error) {
 	conn := s.redisPool.Get()
