@@ -1,6 +1,7 @@
 package elasticache
 
 import (
+	"encoding/json"
 	"fmt"
 	"time"
 
@@ -163,6 +164,82 @@ func (s *Service) Incr(counterKey string) (int, error) {
 	return redis.Int(conn.Do("INCR", counterKey))
 }
 
+// SAdd sadd
+// have to make it as a function instead of a method because of the generic type
+func SAdd[T any](s *Service, key string, members []T, ttlSeconds uint) (err error) {
+	// convert structs to strings (JSON)
+	var memberStrings []string
+	for _, member := range members {
+		jsonBytes, marshalErr := json.Marshal(member)
+		if marshalErr != nil {
+			err = marshalErr
+			return
+		}
+		memberStrings = append(memberStrings, string(jsonBytes))
+	}
+
+	args := redis.Args{}.Add(key).AddFlat(memberStrings)
+
+	conn := s.redisPool.Get()
+	defer conn.Close()
+
+	_, err = conn.Do("SADD", args...)
+	if err != nil {
+		return err
+	}
+
+	_, err = conn.Do("EXPIRE", key, ttlSeconds)
+	return
+}
+
+// SMembers smembers
+// have to make it as a function instead of a method because of the generic type
+func SMembers[T any](s *Service, key string) (members []T, err error) {
+	conn := s.redisPool.Get()
+	defer conn.Close()
+
+	members = []T{}
+	memberStrings, err := redis.Strings(conn.Do("SMEMBERS", key))
+	if err != nil {
+		return []T{}, err
+	}
+
+	for _, member := range memberStrings {
+		var t T
+		if err = json.Unmarshal([]byte(member), &t); err != nil {
+			fmt.Println("Failed to unmarshal member:", err)
+			return
+		}
+		members = append(members, t)
+	}
+
+	return
+}
+
+// SRem srem
+// have to make it as a function instead of a method because of the generic type
+func SRem[T any](s *Service, key string, membersToRemove []T) (err error) {
+	// convert structs to strings (JSON)
+	var memberStrings []string
+	for _, member := range membersToRemove {
+		jsonBytes, marshalErr := json.Marshal(member)
+		if marshalErr != nil {
+			err = marshalErr
+			return
+		}
+		memberStrings = append(memberStrings, string(jsonBytes))
+	}
+
+	args := redis.Args{}.Add(key).AddFlat(memberStrings)
+
+	conn := s.redisPool.Get()
+	defer conn.Close()
+
+	_, err = conn.Do("SREM", args...)
+	return
+}
+
+// /////////////////////////////// PRIVATE ///////////////////////////////////////
 func newRedisPool(host string, options ...DialOption) *redis.Pool {
 	do := dialOptions{}
 	for _, option := range options {
