@@ -1,11 +1,8 @@
 package elasticache
 
 import (
-	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/gomodule/redigo/redis"
@@ -54,8 +51,9 @@ func (s *Service) Close() {
 	s.redisPool.Close()
 }
 
+// ///////////////////////////////// We use functions instead of methods because of the generic type /////////////////////////////////
 // Ping ping
-func (s *Service) Ping() error {
+func Ping(s *Service) error {
 	conn := s.redisPool.Get()
 	defer conn.Close()
 
@@ -67,142 +65,39 @@ func (s *Service) Ping() error {
 }
 
 // Get get
-func (s *Service) Get(key string) ([]byte, error) {
+func Get[T any](s *Service, key string) (data T, err error) {
 	conn := s.redisPool.Get()
 	defer conn.Close()
 
-	var data []byte
-	data, err := redis.Bytes(conn.Do("GET", key))
+	value, err := redis.Bytes(conn.Do("GET", key))
 	if err != nil {
-		return data, fmt.Errorf("error getting key %s: %v", key, err)
-	}
-	return data, err
-}
-
-// MGet get
-func (s *Service) MGet(ctx context.Context, keys ...string) (map[string][]byte, error) {
-	conn, err := s.redisPool.GetContext(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("error getting connection: %w", err)
-	}
-	defer func(conn redis.Conn) {
-		_ = conn.Close()
-	}(conn)
-
-	args := make([]any, len(keys))
-	for i, key := range keys {
-		args[i] = key
+		return
 	}
 
-	values, err := redis.Values(conn.Do("MGET", args...))
-	if err != nil {
-		return nil, fmt.Errorf("error getting keys %s: %w", strings.Join(keys, " "), err)
-	}
-
-	data := make(map[string][]byte, len(keys))
-	if len(keys) != len(values) {
-		return nil, errors.New("key and value length mismatch")
-	}
-
-	for i := 0; i < len(keys); i++ {
-		if valueBites, ok := values[i].([]byte); ok {
-			data[keys[i]] = valueBites
-		}
-	}
-
-	return data, err
+	err = json.Unmarshal(value, &data)
+	return
 }
 
 // Set set
-func (s *Service) Set(key string, value []byte) error {
+func Set[T any](s *Service, key string, value T, ttlSeconds uint) error {
 	conn := s.redisPool.Get()
 	defer conn.Close()
 
-	_, err := conn.Do("SET", key, value)
+	jsonBytes, err := json.Marshal(value)
 	if err != nil {
-		v := string(value)
-		if len(v) > 15 {
-			v = v[0:12] + "..."
-		}
-		return fmt.Errorf("error setting key %s to %s: %v", key, v, err)
+		return err
 	}
+
+	_, err = conn.Do("SETEX", key, ttlSeconds, jsonBytes)
 	return err
 }
 
-// SetContext set with a context
-func (s *Service) SetContext(ctx context.Context, key string, value []byte) error {
-	conn, err := s.redisPool.GetContext(ctx)
-	if err != nil {
-		return fmt.Errorf("error getting connection: %w", err)
-	}
-	defer func(conn redis.Conn) {
-		_ = conn.Close()
-	}(conn)
-
-	_, err = conn.Do("SET", key, value)
-	if err != nil {
-		return fmt.Errorf("error setting key %s : %w", key, err)
-	}
-
-	return err
-}
-
-// SetExpiry set with expiry
-func (s *Service) SetExpiry(key string, value []byte, expireSecond uint) error {
+// Delete delete
+func Delete(s *Service, key string) error {
 	conn := s.redisPool.Get()
 	defer conn.Close()
 
-	_, err := conn.Do("SET", key, value, "EX", expireSecond)
-	if err != nil {
-		v := string(value)
-		if len(v) > 15 {
-			v = v[0:12] + "..."
-		}
-
-		return fmt.Errorf("error setting key with expire %s to %s: %v", key, v, err)
-	}
-
-	return err
-}
-
-// SetExpiryContext set with expiry and context
-func (s *Service) SetExpiryContext(ctx context.Context, key string, value []byte, expireSecond uint) error {
-	conn, err := s.redisPool.GetContext(ctx)
-	if err != nil {
-		return fmt.Errorf("error getting connection: %w", err)
-	}
-	defer func(conn redis.Conn) {
-		_ = conn.Close()
-	}(conn)
-
-	_, err = conn.Do("SET", key, value, "EX", expireSecond)
-	if err != nil {
-		return fmt.Errorf("error setting key with expire %s : %w", key, err)
-	}
-
-	return err
-}
-
-// MSetContext multi set with a context
-func (s *Service) MSetContext(ctx context.Context, keyValues map[string][]byte) error {
-	conn, err := s.redisPool.GetContext(ctx)
-	if err != nil {
-		return fmt.Errorf("error getting connection: %w", err)
-	}
-	defer func(conn redis.Conn) {
-		_ = conn.Close()
-	}(conn)
-
-	args := make([]any, len(keyValues)*2)
-	for key, value := range keyValues {
-		args = append(args, key, value)
-	}
-
-	_, err = conn.Do("MSET", args...)
-	if err != nil {
-		return fmt.Errorf("mset error : %w", err)
-	}
-
+	_, err := conn.Do("DEL", key)
 	return err
 }
 
@@ -218,17 +113,8 @@ func (s *Service) Exists(key string) (bool, error) {
 	return ok, err
 }
 
-// Delete delete
-func (s *Service) Delete(key string) error {
-	conn := s.redisPool.Get()
-	defer conn.Close()
-
-	_, err := conn.Do("DEL", key)
-	return err
-}
-
 // GetKeys get keys by pattern
-func (s *Service) GetKeys(pattern string) ([]string, error) {
+func GetKeys(s *Service, pattern string) ([]string, error) {
 	conn := s.redisPool.Get()
 	defer conn.Close()
 
@@ -253,7 +139,7 @@ func (s *Service) GetKeys(pattern string) ([]string, error) {
 }
 
 // Incr incr
-func (s *Service) Incr(counterKey string) (int, error) {
+func Incr(s *Service, counterKey string) (int, error) {
 	conn := s.redisPool.Get()
 	defer conn.Close()
 
@@ -261,7 +147,6 @@ func (s *Service) Incr(counterKey string) (int, error) {
 }
 
 // SAdd sadd
-// have to make it as a function instead of a method because of the generic type
 func SAdd[T any](s *Service, key string, members []T, ttlSeconds uint) (err error) {
 	// convert structs to strings (JSON)
 	var memberStrings []string
@@ -275,7 +160,6 @@ func SAdd[T any](s *Service, key string, members []T, ttlSeconds uint) (err erro
 	}
 
 	args := redis.Args{}.Add(key).AddFlat(memberStrings)
-
 	conn := s.redisPool.Get()
 	defer conn.Close()
 
@@ -289,7 +173,6 @@ func SAdd[T any](s *Service, key string, members []T, ttlSeconds uint) (err erro
 }
 
 // SMembers smembers
-// have to make it as a function instead of a method because of the generic type
 func SMembers[T any](s *Service, key string) (members []T, err error) {
 	conn := s.redisPool.Get()
 	defer conn.Close()
@@ -304,7 +187,7 @@ func SMembers[T any](s *Service, key string) (members []T, err error) {
 		var t T
 		if err = json.Unmarshal([]byte(member), &t); err != nil {
 			fmt.Println("Failed to unmarshal member:", err)
-			return
+			continue
 		}
 		members = append(members, t)
 	}

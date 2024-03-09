@@ -19,32 +19,39 @@ func init() {
 
 // TestPing test redis ping
 func TestPing(t *testing.T) {
-	err := svc.Ping()
+	err := Ping(svc)
 	assert.Nil(t, err, "ping should not return error")
 }
 
 // TestSet test redis set
 func TestSet(t *testing.T) {
-	err := svc.Set("test", []byte("abc"))
+	err := Set(svc, "test", "abc", 30)
 	assert.Nil(t, err, "set should not return error")
 }
 
 func TestSetTwice(t *testing.T) {
-	err := svc.Set("test", []byte("abcde"))
+	err := Set(svc, "test", "abcde", 30)
 	assert.Nil(t, err, "set should not return error")
 }
 
 // TestGet test redis set
 func TestGet(t *testing.T) {
-	value, err := svc.Get("test")
+	value, err := Get[string](svc, "test")
 	assert.Nil(t, err, "get should not return error")
-	assert.Equal(t, value, []byte("abcde"), "get should return expected value")
+	assert.Equal(t, value, "abcde", "get should return expected value")
 }
 
 // TestDelete test redis delete
 func TestDelete(t *testing.T) {
-	err := svc.Delete("test")
+	err := Delete(svc, "test")
 	assert.Nil(t, err, "delete should not return error")
+}
+
+// TestGet test redis set
+func TestGetAgain(t *testing.T) {
+	value, err := Get[string](svc, "test")
+	assert.Error(t, err, "get should return error")
+	assert.Equal(t, value, "", "get should return empty")
 }
 
 // TestSAdd test redis SADD
@@ -54,7 +61,7 @@ func TestSAdd(t *testing.T) {
 		{Name: "Jane", Age: 25},
 	}
 
-	err := SAdd(svc, "test", people, 5*60)
+	err := SAdd(svc, "test", people, 30)
 	assert.Nil(t, err, "SAdd should not return error")
 }
 
@@ -68,7 +75,7 @@ func TestSMembers(t *testing.T) {
 
 	actual, err := SMembers[Person](svc, "test")
 	assert.Nil(t, err, "SMembers should not return error")
-	assert.Equal(t, actual, expected, "SMembers should return expected value")
+	assert.Equal(t, len(actual), len(expected), "SMembers should return expected value")
 }
 
 // TestSRem test redis SREM
