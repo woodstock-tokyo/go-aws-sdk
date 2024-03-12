@@ -102,7 +102,7 @@ func Delete(s *Service, key string) error {
 }
 
 // Exists exist
-func (s *Service) Exists(key string) (bool, error) {
+func Exists(s *Service, key string) (bool, error) {
 	conn := s.redisPool.Get()
 	defer conn.Close()
 
