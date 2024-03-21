@@ -218,6 +218,83 @@ func SRem[T any](s *Service, key string, membersToRemove []T) (err error) {
 	return
 }
 
+// ZAdd zadd
+func ZAdd[T any, U comparable](s *Service, key string, members []T, scores []U, ttlSeconds uint) (err error) {
+	// convert structs to strings (JSON)
+	args := redis.Args{}.Add(key)
+	for i, member := range members {
+		jsonBytes, err := json.Marshal(member)
+		if err != nil {
+			return err
+		}
+		args = args.AddFlat(map[U]string{scores[i]: string(jsonBytes)})
+	}
+
+	conn := s.redisPool.Get()
+	defer conn.Close()
+
+	_, err = conn.Do("ZADD", args...)
+	if err != nil {
+		return err
+	}
+
+	_, err = conn.Do("EXPIRE", key, ttlSeconds)
+	return
+}
+
+// ZRankWithScore zrank with score
+func ZRankWithScore[T any, U comparable](s *Service, key string, member T) (rank int, score *U, err error) {
+	conn := s.redisPool.Get()
+	defer conn.Close()
+
+	jsonBytes, err := json.Marshal(member)
+	if err != nil {
+		return
+	}
+	memberString := string(jsonBytes)
+
+	args := redis.Args{}.Add(key).AddFlat(memberString).Add("WITHSCORE")
+
+	values, err := redis.Values(conn.Do("ZRANK", args...))
+	if err != nil {
+		return
+	}
+
+	_, err = redis.Scan(values, &rank, &score)
+	if err != nil {
+		return 0, nil, err
+	}
+
+	return rank, score, err
+}
+
+// ZCount zcount
+func ZCount[U comparable](s *Service, key string, min *U, max *U) (count int, err error) {
+	conn := s.redisPool.Get()
+	defer conn.Close()
+
+	args := redis.Args{}.Add(key)
+
+	if min != nil {
+		args = args.Add(*min)
+	} else {
+		args = args.Add("-inf")
+	}
+
+	if max != nil {
+		args = args.Add(*max)
+	} else {
+		args = args.Add("+inf")
+	}
+
+	count, err = redis.Int(conn.Do("ZCOUNT", args...))
+	if err != nil {
+		return
+	}
+
+	return
+}
+
 // /////////////////////////////// PRIVATE ///////////////////////////////////////
 func newRedisPool(host string, options ...DialOption) *redis.Pool {
 	do := dialOptions{}
