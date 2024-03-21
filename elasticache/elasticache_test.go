@@ -143,7 +143,29 @@ func TestZRankWithScore(t *testing.T) {
 	_ = ZAdd(svc, "test", members, scores, 30)
 
 	rank, score, err := ZRankWithScore[Person, float64](svc, "test", Person{Name: "Jene", Age: 15})
-	assert.Nil(t, err, "ZREVRANK should not return error")
-	assert.Equal(t, 2, rank, "ZREVRANK should return expected rank")
-	assert.Equal(t, 2.0, *score, "ZREVRANK should return expected score")
+	assert.Nil(t, err, "ZRANK should not return error")
+	assert.Equal(t, 2, rank, "ZRANK should return expected rank")
+	assert.Equal(t, 2.0, *score, "ZRANK should return expected score")
+}
+
+// TestZRangeWithScore test redis ZRANGE
+func TestZRangeWithScore(t *testing.T) {
+	scores := []float64{1.12, 3.5, 4.5, 5.5}
+	members := []Person{
+		{Name: "John", Age: 30},
+		{Name: "Jane", Age: 25},
+		{Name: "Jano", Age: 20},
+		{Name: "Jene", Age: 15},
+	}
+	_ = ZAdd(svc, "test", members, scores, 30)
+
+	members, scores, err := ZRangeWithScore[Person, float64](svc, "test", 0, 10)
+	assert.Nil(t, err, "ZRANGE should not return error")
+	assert.Equal(t, 4, len(members), "ZRANGE should return expected length")
+
+	for i, member := range members {
+		assert.Equal(t, members[i], member, "ZRANGE should return expected member")
+		assert.Equal(t, scores[i], scores[i], "ZRANGE should return expected score")
+		i++
+	}
 }
