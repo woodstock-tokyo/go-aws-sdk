@@ -1,6 +1,7 @@
 package elasticache
 
 import (
+	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -14,7 +15,7 @@ type Person struct {
 }
 
 func init() {
-	svc = NewService("localhost:6379")
+	svc = NewService("woodstock.redis.cache.windows.net:6379", DialPassword(os.Getenv("WS_ELASTICACHE_PASSWORD")))
 }
 
 // TestPing test redis ping
@@ -144,21 +145,9 @@ func TestZCount(t *testing.T) {
 	assert.Equal(t, 3, count, "ZCount should return expected count")
 }
 
-// TestZRem test redis ZREM
-func TestZRemAgain(t *testing.T) {
-	members := []Person{
-		{Name: "John", Age: 30},
-		{Name: "Jane", Age: 25},
-		{Name: "Jano", Age: 20},
-		{Name: "Jene", Age: 15},
-	}
-
-	err := ZRem(svc, "test", members)
-	assert.Nil(t, err, "ZRem should not return error")
-}
-
 // TestZRevRankWithScore test redis ZREVRANK
 func TestZRankWithScore(t *testing.T) {
+	Delete(svc, "test")
 	scores := []float64{1.12, 3.5, 2.0, 3.5, 4.5, 2.0}
 	members := []Person{ // rank => reverse rank
 		{Name: "John", Age: 30}, // 0 => 6-0 => 6
