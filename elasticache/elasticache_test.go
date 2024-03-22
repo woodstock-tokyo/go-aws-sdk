@@ -110,6 +110,21 @@ func TestZAdd(t *testing.T) {
 	assert.Nil(t, err, "ZAdd should not return error")
 }
 
+// TestZRem test redis ZREM
+func TestZRem(t *testing.T) {
+	scores := []float64{1.12, 3.5, 3.5, 4.5}
+	members := []Person{
+		{Name: "John", Age: 30},
+		{Name: "Jane", Age: 25},
+		{Name: "Jano", Age: 20},
+		{Name: "Jene", Age: 15},
+	}
+	_ = ZAdd(svc, "test", members, scores, 30)
+
+	err := ZRem(svc, "test", members[0:2])
+	assert.Nil(t, err, "ZRem should not return error")
+}
+
 // TestZCount test redis ZCOUNT
 func TestZCount(t *testing.T) {
 	scores := []float64{1.12, 3.5, 3.5, 4.5}
@@ -125,8 +140,8 @@ func TestZCount(t *testing.T) {
 	var max float64 = 3.5
 
 	count, err := ZCount[float64](svc, "test", &min, &max)
-	assert.Nil(t, err, "ZCOUNT should not return error")
-	assert.Equal(t, 3, count, "ZCOUNT should return expected count")
+	assert.Nil(t, err, "ZCount should not return error")
+	assert.Equal(t, 3, count, "ZCount should return expected count")
 }
 
 // TestZRevRankWithScore test redis ZREVRANK
@@ -143,9 +158,9 @@ func TestZRankWithScore(t *testing.T) {
 	_ = ZAdd(svc, "test", members, scores, 30)
 
 	rank, score, err := ZRankWithScore[Person, float64](svc, "test", Person{Name: "Jene", Age: 15})
-	assert.Nil(t, err, "ZRANK should not return error")
-	assert.Equal(t, 2, rank, "ZRANK should return expected rank")
-	assert.Equal(t, 2.0, *score, "ZRANK should return expected score")
+	assert.Nil(t, err, "ZRankWithScore should not return error")
+	assert.Equal(t, 2, rank, "ZRankWithScore should return expected rank")
+	assert.Equal(t, 2.0, *score, "ZRankWithScore should return expected score")
 }
 
 // TestZRangeWithScore test redis ZRANGE
@@ -160,12 +175,12 @@ func TestZRangeWithScore(t *testing.T) {
 	_ = ZAdd(svc, "test", members, scores, 30)
 
 	_members, _scores, err := ZRangeWithScore[Person, float64](svc, "test", 0, 10)
-	assert.Nil(t, err, "ZRANGE should not return error")
-	assert.Equal(t, 4, len(_members), "ZRANGE should return expected length")
+	assert.Nil(t, err, "ZRangeWithScore should not return error")
+	assert.Equal(t, 4, len(_members), "ZRangeWithScore should return expected length")
 
 	for i, _member := range _members {
-		assert.Equal(t, members[i], _member, "ZRANGE should return expected member")
-		assert.Equal(t, scores[i], _scores[i], "ZRANGE should return expected score")
+		assert.Equal(t, members[i], _member, "ZRangeWithScore should return expected member")
+		assert.Equal(t, scores[i], _scores[i], "ZRangeWithScore should return expected score")
 		i++
 	}
 }
@@ -187,12 +202,12 @@ func TestZRevRangeWithScore(t *testing.T) {
 	}
 
 	_members, _scores, err := ZRevRangeWithScore[Person, float64](svc, "test", 0, 2)
-	assert.Nil(t, err, "ZREVRANGE should not return error")
-	assert.Equal(t, 3, len(_members), "ZREVRANGE should return expected length")
+	assert.Nil(t, err, "ZRevRangeWithScore should not return error")
+	assert.Equal(t, 3, len(_members), "ZRevRangeWithScore should return expected length")
 
 	for i, _member := range _members {
-		assert.Equal(t, members[i], _member, "ZREVRANGE should return expected member")
-		assert.Equal(t, scores[i], _scores[i], "ZREVRANGE should return expected score")
+		assert.Equal(t, members[i], _member, "ZRevRangeWithScore should return expected member")
+		assert.Equal(t, scores[i], _scores[i], "ZRevRangeWithScore should return expected score")
 		i++
 	}
 }

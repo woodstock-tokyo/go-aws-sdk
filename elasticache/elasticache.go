@@ -242,6 +242,28 @@ func ZAdd[T any, U comparable](s *Service, key string, members []T, scores []U, 
 	return
 }
 
+// ZRem zrem
+func ZRem[T any](s *Service, key string, membersToRemove []T) (err error) {
+	// convert structs to strings (JSON)
+	var memberStrings []string
+	for _, member := range membersToRemove {
+		jsonBytes, marshalErr := json.Marshal(member)
+		if marshalErr != nil {
+			err = marshalErr
+			return
+		}
+		memberStrings = append(memberStrings, string(jsonBytes))
+	}
+
+	args := redis.Args{}.Add(key).AddFlat(memberStrings)
+
+	conn := s.redisPool.Get()
+	defer conn.Close()
+
+	_, err = conn.Do("ZREM", args...)
+	return
+}
+
 // ZRangeWithScore zrange with score
 func ZRangeWithScore[T comparable, U any](s *Service, key string, start, end uint) (members []T, scores []U, err error) {
 	conn := s.redisPool.Get()
