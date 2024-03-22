@@ -159,13 +159,40 @@ func TestZRangeWithScore(t *testing.T) {
 	}
 	_ = ZAdd(svc, "test", members, scores, 30)
 
-	members, scores, err := ZRangeWithScore[Person, float64](svc, "test", 0, 10)
+	_members, _scores, err := ZRangeWithScore[Person, float64](svc, "test", 0, 10)
 	assert.Nil(t, err, "ZRANGE should not return error")
-	assert.Equal(t, 4, len(members), "ZRANGE should return expected length")
+	assert.Equal(t, 4, len(_members), "ZRANGE should return expected length")
 
-	for i, member := range members {
-		assert.Equal(t, members[i], member, "ZRANGE should return expected member")
-		assert.Equal(t, scores[i], scores[i], "ZRANGE should return expected score")
+	for i, _member := range _members {
+		assert.Equal(t, members[i], _member, "ZRANGE should return expected member")
+		assert.Equal(t, scores[i], _scores[i], "ZRANGE should return expected score")
+		i++
+	}
+}
+
+// TestZRevRangeWithScore test redis ZREVRANGE
+func TestZRevRangeWithScore(t *testing.T) {
+	scores := []float64{1.12, 3.5, 4.5, 5.5}
+	members := []Person{
+		{Name: "John", Age: 30},
+		{Name: "Jane", Age: 25},
+		{Name: "Jano", Age: 20},
+		{Name: "Jene", Age: 15},
+	}
+	_ = ZAdd(svc, "test", members, scores, 30)
+	// reverse scores and members
+	for i, j := 0, len(members)-1; i < j; i, j = i+1, j-1 {
+		scores[i], scores[j] = scores[j], scores[i]
+		members[i], members[j] = members[j], members[i]
+	}
+
+	_members, _scores, err := ZRevRangeWithScore[Person, float64](svc, "test", 0, 2)
+	assert.Nil(t, err, "ZREVRANGE should not return error")
+	assert.Equal(t, 3, len(_members), "ZREVRANGE should return expected length")
+
+	for i, _member := range _members {
+		assert.Equal(t, members[i], _member, "ZREVRANGE should return expected member")
+		assert.Equal(t, scores[i], _scores[i], "ZREVRANGE should return expected score")
 		i++
 	}
 }
