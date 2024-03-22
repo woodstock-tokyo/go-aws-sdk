@@ -145,24 +145,40 @@ func TestZCount(t *testing.T) {
 	assert.Equal(t, 3, count, "ZCount should return expected count")
 }
 
-// TestZRevRankWithScore test redis ZREVRANK
-func TestZRankWithScore(t *testing.T) {
+// TestZRank test redis ZRANK
+func TestZRank(t *testing.T) {
 	Delete(svc, "test")
 	scores := []float64{1.12, 3.5, 2.0, 3.5, 4.5, 2.0}
-	members := []Person{ // rank => reverse rank
-		{Name: "John", Age: 30}, // 0 => 6-0 => 6
-		{Name: "Jana", Age: 25}, // 4 => 6-4 => 2
-		{Name: "Jano", Age: 20}, // 2 => 6-2 => 4
-		{Name: "Jona", Age: 20}, // 4 => 6-4 => 2
-		{Name: "Jono", Age: 20}, // 5 => 6-5 => 1
-		{Name: "Jene", Age: 15}, // 2 => 6-2 => 4
+	members := []Person{
+		{Name: "John", Age: 30},
+		{Name: "Jana", Age: 25},
+		{Name: "Jano", Age: 20},
+		{Name: "Jona", Age: 20},
+		{Name: "Jono", Age: 20},
+		{Name: "Jene", Age: 15},
 	}
 	_ = ZAdd(svc, "test", members, scores, 30)
 
-	rank, score, err := ZRankWithScore[Person, float64](svc, "test", Person{Name: "Jene", Age: 15})
-	assert.Nil(t, err, "ZRankWithScore should not return error")
-	assert.Equal(t, 2, rank, "ZRankWithScore should return expected rank")
-	assert.Equal(t, 2.0, *score, "ZRankWithScore should return expected score")
+	rank, err := ZRank(svc, "test", Person{Name: "Jene", Age: 15})
+	assert.Nil(t, err, "ZRank should not return error")
+	assert.Equal(t, 2, rank, "ZRank should return expected rank")
+}
+
+// TestZScore test redis ZSCORE
+func TestZScore(t *testing.T) {
+	Delete(svc, "test")
+	scores := []float64{1.12, 3.5, 4.5, 5.5}
+	members := []Person{
+		{Name: "John", Age: 30},
+		{Name: "Jane", Age: 25},
+		{Name: "Jano", Age: 20},
+		{Name: "Jene", Age: 15},
+	}
+	_ = ZAdd(svc, "test", members, scores, 30)
+
+	score, err := ZScore[Person, float64](svc, "test", Person{Name: "Jene", Age: 15})
+	assert.Nil(t, err, "ZScore should not return error")
+	assert.Equal(t, 5.5, *score, "ZScore should return expected score")
 }
 
 // TestZRangeWithScore test redis ZRANGE

@@ -332,8 +332,8 @@ func ZRevRangeWithScore[T comparable, U any](s *Service, key string, start, end 
 	return
 }
 
-// ZRankWithScore zrank with score
-func ZRankWithScore[T any, U comparable](s *Service, key string, member T) (rank int, score *U, err error) {
+// ZScore zscore
+func ZScore[T any, U any](s *Service, key string, member T) (score *U, err error) {
 	conn := s.redisPool.Get()
 	defer conn.Close()
 
@@ -343,19 +343,39 @@ func ZRankWithScore[T any, U comparable](s *Service, key string, member T) (rank
 	}
 	memberString := string(jsonBytes)
 
-	args := redis.Args{}.Add(key).AddFlat(memberString).Add("WITHSCORE")
+	args := redis.Args{}.Add(key).AddFlat(memberString)
 
-	values, err := redis.Values(conn.Do("ZRANK", args...))
+	bytes, err := redis.Bytes(conn.Do("ZSCORE", args...))
 	if err != nil {
 		return
 	}
 
-	_, err = redis.Scan(values, &rank, &score)
-	if err != nil {
-		return 0, nil, err
+	if err = json.Unmarshal(bytes, &score); err != nil {
+		return nil, err
 	}
 
-	return rank, score, err
+	return score, err
+}
+
+// ZRank zrank with score
+func ZRank[T any](s *Service, key string, member T) (rank int, err error) {
+	conn := s.redisPool.Get()
+	defer conn.Close()
+
+	jsonBytes, err := json.Marshal(member)
+	if err != nil {
+		return
+	}
+	memberString := string(jsonBytes)
+
+	args := redis.Args{}.Add(key).AddFlat(memberString)
+
+	rank, err = redis.Int(conn.Do("ZRANK", args...))
+	if err != nil {
+		return
+	}
+
+	return rank, err
 }
 
 // ZCount zcount
