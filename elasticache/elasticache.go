@@ -168,7 +168,9 @@ func SAdd[T any](s *Service, key string, members []T, ttlSeconds uint) (err erro
 		return err
 	}
 
-	_, err = conn.Do("EXPIRE", key, ttlSeconds)
+	if ttlSeconds > 0 {
+		_, err = conn.Do("EXPIRE", key, ttlSeconds)
+	}
 	return
 }
 
@@ -238,7 +240,9 @@ func ZAdd[T any, U comparable](s *Service, key string, members []T, scores []U, 
 		return err
 	}
 
-	_, err = conn.Do("EXPIRE", key, ttlSeconds)
+	if ttlSeconds > 0 {
+		_, err = conn.Do("EXPIRE", key, ttlSeconds)
+	}
 	return
 }
 

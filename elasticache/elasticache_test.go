@@ -144,6 +144,19 @@ func TestZCount(t *testing.T) {
 	assert.Equal(t, 3, count, "ZCount should return expected count")
 }
 
+// TestZRem test redis ZREM
+func TestZRemAgain(t *testing.T) {
+	members := []Person{
+		{Name: "John", Age: 30},
+		{Name: "Jane", Age: 25},
+		{Name: "Jano", Age: 20},
+		{Name: "Jene", Age: 15},
+	}
+
+	err := ZRem(svc, "test", members)
+	assert.Nil(t, err, "ZRem should not return error")
+}
+
 // TestZRevRankWithScore test redis ZREVRANK
 func TestZRankWithScore(t *testing.T) {
 	scores := []float64{1.12, 3.5, 2.0, 3.5, 4.5, 2.0}
