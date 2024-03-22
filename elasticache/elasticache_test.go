@@ -165,6 +165,7 @@ func TestZRankWithScore(t *testing.T) {
 
 // TestZRangeWithScore test redis ZRANGE
 func TestZRangeWithScore(t *testing.T) {
+	Delete(svc, "test")
 	scores := []float64{1.12, 3.5, 4.5, 5.5}
 	members := []Person{
 		{Name: "John", Age: 30},
