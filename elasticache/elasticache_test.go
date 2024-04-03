@@ -35,6 +35,12 @@ func TestSetTwice(t *testing.T) {
 	assert.Nil(t, err, "set should not return error")
 }
 
+func TestGetKeys(t *testing.T) {
+	keys, err := GetKeys(svc, "test")
+	assert.Nil(t, err, "get kets should not return error")
+	assert.Equal(t, keys[0], "test")
+}
+
 // TestGet test redis set
 func TestGet(t *testing.T) {
 	value, err := Get[string](svc, "test")
