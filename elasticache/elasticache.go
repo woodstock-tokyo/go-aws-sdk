@@ -119,9 +119,10 @@ func GetKeys(s *Service, pattern string) ([]string, error) {
 	defer conn.Close()
 
 	iter := 0
+	count := 10000
 	keys := []string{}
 	for {
-		arr, err := redis.Values(conn.Do("SCAN", iter, "MATCH", pattern))
+		arr, err := redis.Values(conn.Do("SCAN", iter, "MATCH", pattern, "COUNT", count))
 		if err != nil {
 			return keys, fmt.Errorf("error retrieving '%s' keys", pattern)
 		}
