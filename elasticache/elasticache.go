@@ -88,7 +88,11 @@ func Set[T any](s *Service, key string, value T, ttlSeconds uint) error {
 		return err
 	}
 
-	_, err = conn.Do("SETEX", key, ttlSeconds, jsonBytes)
+	_, err = conn.Do("SET", key, jsonBytes)
+
+	if ttlSeconds > 0 {
+		_, err = conn.Do("EXPIRE", key, ttlSeconds)
+	}
 	return err
 }
 
@@ -143,7 +147,6 @@ func GetKeys(s *Service, pattern string) ([]string, error) {
 func Incr(s *Service, counterKey string) (int, error) {
 	conn := s.redisPool.Get()
 	defer conn.Close()
-
 	return redis.Int(conn.Do("INCR", counterKey))
 }
 

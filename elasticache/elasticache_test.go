@@ -26,7 +26,7 @@ func TestPing(t *testing.T) {
 
 // TestSet test redis set
 func TestSet(t *testing.T) {
-	err := Set(svc, "test", "abc", 30)
+	err := Set(svc, "test", "abc", 0)
 	assert.Nil(t, err, "set should not return error")
 }
 
