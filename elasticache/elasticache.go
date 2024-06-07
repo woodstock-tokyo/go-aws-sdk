@@ -117,6 +117,38 @@ func Exists(s *Service, key string) (bool, error) {
 	return ok, err
 }
 
+// MGet gets multiple keys and unmarshals JSON values into the provided type
+func MGet[T any](s *Service, keys []string) (map[string]T, error) {
+	conn := s.redisPool.Get()
+	defer conn.Close()
+
+	// Convert keys slice to interface slice for the Do method
+	interfaceKeys := make([]interface{}, len(keys))
+	for i, key := range keys {
+		interfaceKeys[i] = key
+	}
+
+	// Perform MGET command
+	values, err := redis.ByteSlices(conn.Do("MGET", interfaceKeys...))
+	if err != nil {
+		return nil, fmt.Errorf("error retrieving values for keys: %v", err)
+	}
+
+	// Create a map to hold key-value pairs
+	result := make(map[string]T)
+	for i, key := range keys {
+		if values[i] != nil {
+			var data T
+			if err := json.Unmarshal(values[i], &data); err != nil {
+				return nil, fmt.Errorf("error unmarshalling value for key %s: %v", key, err)
+			}
+			result[key] = data
+		}
+	}
+
+	return result, nil
+}
+
 // GetKeys get keys by pattern
 func GetKeys(s *Service, pattern string) ([]string, error) {
 	conn := s.redisPool.Get()

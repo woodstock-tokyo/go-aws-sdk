@@ -48,9 +48,23 @@ func TestGet(t *testing.T) {
 	assert.Equal(t, value, "abcde", "get should return expected value")
 }
 
+func TestSetAgain(t *testing.T) {
+	err := Set(svc, "test1", "12345", 30)
+	assert.Nil(t, err, "set should not return error")
+}
+
+// TestGet test redis set
+func TestMGet(t *testing.T) {
+	value, err := MGet[string](svc, []string{"test", "test1"})
+	assert.Equal(t, len(value), 2, "get should return expected value")
+	assert.Nil(t, err, "get should not return error")
+}
+
 // TestDelete test redis delete
 func TestDelete(t *testing.T) {
 	err := Delete(svc, "test")
+	assert.Nil(t, err, "delete should not return error")
+	err = Delete(svc, "tes1")
 	assert.Nil(t, err, "delete should not return error")
 }
 
