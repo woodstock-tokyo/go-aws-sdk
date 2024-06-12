@@ -305,7 +305,7 @@ func ZRem[T any](s *Service, key string, membersToRemove []T) (err error) {
 }
 
 // ZRangeWithScore zrange with score
-func ZRangeWithScore[T comparable, U any](s *Service, key string, start, end uint) (members []T, scores []U, err error) {
+func ZRangeWithScore[T comparable, U any](s *Service, key string, start, end int) (members []T, scores []U, err error) {
 	conn := s.redisPool.Get()
 	defer conn.Close()
 
@@ -337,7 +337,7 @@ func ZRangeWithScore[T comparable, U any](s *Service, key string, start, end uin
 }
 
 // ZRevRangeWithScore zrevrange with score
-func ZRevRangeWithScore[T comparable, U any](s *Service, key string, start, end uint) (members []T, scores []U, err error) {
+func ZRevRangeWithScore[T comparable, U any](s *Service, key string, start, end int) (members []T, scores []U, err error) {
 	conn := s.redisPool.Get()
 	defer conn.Close()
 
