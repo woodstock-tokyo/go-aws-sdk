@@ -441,6 +441,19 @@ func ZCount[U comparable](s *Service, key string, min *U, max *U) (count int, er
 	return
 }
 
+// Copy copy
+func Copy(s *Service, fromKey, toKey string) (err error) {
+	args := redis.Args{}.Add(fromKey).Add(toKey)
+	conn := s.redisPool.Get()
+	defer conn.Close()
+
+	_, err = conn.Do("COPY", args...)
+	if err != nil {
+		return err
+	}
+	return
+}
+
 // /////////////////////////////// PRIVATE ///////////////////////////////////////
 func newRedisPool(host string, options ...DialOption) *redis.Pool {
 	do := dialOptions{}

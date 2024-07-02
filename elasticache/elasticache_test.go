@@ -250,3 +250,13 @@ func TestZRevRangeWithScore(t *testing.T) {
 		i++
 	}
 }
+
+// TestCopy test redis COPY
+func TestCopy(t *testing.T) {
+	_ = Set(svc, "test", "abc", 30)
+	err := Copy(svc, "test", "test-2")
+	assert.Nil(t, err, "copy should not return error")
+
+	value, _ := Get[string](svc, "test-2")
+	assert.Equal(t, value, "abc", "get should return abc")
+}
