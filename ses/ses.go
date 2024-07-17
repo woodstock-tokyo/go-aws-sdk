@@ -30,6 +30,56 @@ type SendEmailResponse struct {
 	Error error
 }
 
+// CreateTemplateOptions create template options
+type CreateTemplateOptions struct {
+	TemplateName string
+	Subject      string
+	HTML         *string
+	Text         *string
+}
+
+// CreateTemplateResponse create template response
+type CreateTemplateResponse struct {
+	Error error
+}
+
+// DeleteTemplateOptions delete template options
+type DeleteTemplateOptions struct {
+	TemplateName string
+}
+
+// DeleteTemplateResponse delete template response
+type DeleteTemplateResponse struct {
+	Error error
+}
+
+// ListTemplatesOptions list templates options
+type ListTemplatesOptions struct {
+	// MaxItems max is 10
+	MaxItems  *int64
+	NextToken *string
+}
+
+// ListTemplatesResponse list templates response
+type ListTemplatesResponse struct {
+	Error     error
+	Templates []string
+}
+
+// GetTemplateOptions get templates options
+type GetTemplateOptions struct {
+	TemplateName string
+}
+
+// GetTemplateResponse get templates response
+type GetTemplateResponse struct {
+	Error        error
+	SubjectPart  *string
+	TemplateName *string
+	TextPart     *string
+	HtmlPart     *string
+}
+
 // Context context includes endpoint, region and other info
 type context struct {
 	region string
@@ -79,8 +129,8 @@ func (s *Service) client() *ses.SES {
 	return instance
 }
 
-// SendTampleteEmail send email
-func (s *Service) SendTampleteEmail(opts *SendEmailOptions) (resp *SendEmailResponse) {
+// SendEmail send email
+func (s *Service) SendEmail(opts *SendEmailOptions) (resp *SendEmailResponse) {
 	resp = new(SendEmailResponse)
 
 	client := s.client()
@@ -137,7 +187,7 @@ func (s *Service) SendTampleteEmail(opts *SendEmailOptions) (resp *SendEmailResp
 func (s *Service) AsyncSendTamplateEmail(opts *SendEmailOptions) (respchan chan<- *SendEmailResponse) {
 	respchan = make(chan *SendEmailResponse)
 	go func() {
-		respchan <- s.SendTampleteEmail(opts)
+		respchan <- s.SendEmail(opts)
 	}()
 	return respchan
 }
@@ -146,4 +196,87 @@ func (c *context) check() {
 	if c == nil {
 		panic("invalid context")
 	}
+}
+
+// CreateTemplate creates an SES email template
+func (s *Service) CreateTemplate(opts *CreateTemplateOptions) (resp *CreateTemplateResponse) {
+	resp = new(CreateTemplateResponse)
+	client := s.client()
+	input := &ses.CreateTemplateInput{
+		Template: &ses.Template{
+			TemplateName: aws.String(opts.TemplateName),
+			SubjectPart:  aws.String(opts.Subject),
+		},
+	}
+
+	if opts.HTML != nil {
+		input.Template.HtmlPart = opts.HTML
+	} else if opts.Text != nil {
+		input.Template.TextPart = opts.Text
+	}
+
+	_, err := client.CreateTemplate(input)
+	if err != nil {
+		resp.Error = err
+	}
+
+	return
+}
+
+// DeleteTemplate deletes an SES email template by name
+func (s *Service) DeleteTemplate(opts *DeleteTemplateOptions) (resp *DeleteTemplateResponse) {
+	resp = new(DeleteTemplateResponse)
+	client := s.client()
+	input := &ses.DeleteTemplateInput{
+		TemplateName: aws.String(opts.TemplateName),
+	}
+
+	_, err := client.DeleteTemplate(input)
+	if err != nil {
+		resp.Error = err
+	}
+
+	return
+}
+
+// ListTemplates lists SES email templates
+func (s *Service) ListTemplates(opts *ListTemplatesOptions) (resp *ListTemplatesResponse) {
+	resp = new(ListTemplatesResponse)
+	client := s.client()
+	input := &ses.ListTemplatesInput{
+		MaxItems:  opts.MaxItems,
+		NextToken: opts.NextToken,
+	}
+
+	result, err := client.ListTemplates(input)
+	if err != nil {
+		resp.Error = err
+	}
+
+	for _, template := range result.TemplatesMetadata {
+		resp.Templates = append(resp.Templates, *template.Name)
+	}
+
+	return
+}
+
+// GetTemplate retrieves details of an SES email template by name
+func (s *Service) GetTemplate(opts *GetTemplateOptions) (resp *GetTemplateResponse) {
+	resp = new(GetTemplateResponse)
+	client := s.client()
+	input := &ses.GetTemplateInput{
+		TemplateName: aws.String(opts.TemplateName),
+	}
+
+	result, err := client.GetTemplate(input)
+	if err != nil {
+		resp.Error = err
+	}
+
+	resp.SubjectPart = result.Template.SubjectPart
+	resp.TemplateName = result.Template.TemplateName
+	resp.TextPart = result.Template.TextPart
+	resp.HtmlPart = result.Template.HtmlPart
+
+	return
 }
