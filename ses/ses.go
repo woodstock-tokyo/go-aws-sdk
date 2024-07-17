@@ -43,6 +43,19 @@ type CreateTemplateResponse struct {
 	Error error
 }
 
+// UpdateTemplateOptions update template options
+type UpdateTemplateOptions struct {
+	TemplateName string
+	Subject      string
+	HTML         *string
+	Text         *string
+}
+
+// UpdateTemplateResponse create template response
+type UpdateTemplateResponse struct {
+	Error error
+}
+
 // DeleteTemplateOptions delete template options
 type DeleteTemplateOptions struct {
 	TemplateName string
@@ -206,16 +219,33 @@ func (s *Service) CreateTemplate(opts *CreateTemplateOptions) (resp *CreateTempl
 		Template: &ses.Template{
 			TemplateName: aws.String(opts.TemplateName),
 			SubjectPart:  aws.String(opts.Subject),
+			HtmlPart:     opts.HTML,
+			TextPart:     opts.Text,
 		},
 	}
 
-	if opts.HTML != nil {
-		input.Template.HtmlPart = opts.HTML
-	} else if opts.Text != nil {
-		input.Template.TextPart = opts.Text
+	_, err := client.CreateTemplate(input)
+	if err != nil {
+		resp.Error = err
 	}
 
-	_, err := client.CreateTemplate(input)
+	return
+}
+
+// UpdateTemplate updates an existing SES email template
+func (s *Service) UpdateTemplate(opts *UpdateTemplateOptions) (resp *UpdateTemplateResponse) {
+	resp = new(UpdateTemplateResponse)
+	client := s.client()
+	input := &ses.UpdateTemplateInput{
+		Template: &ses.Template{
+			TemplateName: aws.String(opts.TemplateName),
+			SubjectPart:  aws.String(opts.Subject),
+			HtmlPart:     opts.HTML,
+			TextPart:     opts.Text,
+		},
+	}
+
+	_, err := client.UpdateTemplate(input)
 	if err != nil {
 		resp.Error = err
 	}

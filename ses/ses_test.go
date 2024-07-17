@@ -22,6 +22,20 @@ func TestCreateTemplate(t *testing.T) {
 	assert.NoError(t, resp.Error)
 }
 
+func TestUpdateTemplate(t *testing.T) {
+	svc := NewService(os.Getenv("WS_SES_AWS_ACCESS_KEY_ID"), os.Getenv("WS_SES_AWS_SECRET_ACCESS_KEY"))
+	svc.SetRegion("ap-northeast-1")
+
+	opts := &UpdateTemplateOptions{
+		TemplateName: "test_template",
+		Subject:      "test",
+		HTML:         Vtop("<html><body><h1>Hello {{name}} - New Template</h1></body></html>"),
+	}
+
+	resp := svc.UpdateTemplate(opts)
+	assert.NoError(t, resp.Error)
+}
+
 // TestSendMessage test send message
 func TestSendMail(t *testing.T) {
 	svc := NewService(os.Getenv("WS_SES_AWS_ACCESS_KEY_ID"), os.Getenv("WS_SES_AWS_SECRET_ACCESS_KEY"))
