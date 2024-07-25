@@ -169,13 +169,21 @@ func (s *Service) SendEmail(opts *SendEmailOptions) (resp *SendEmailResponse) {
 		bccs = append(bccs, aws.String(bcc))
 	}
 
+	dest := &ses.Destination{
+		ToAddresses: toAddresses,
+	}
+
+	if len(ccs) > 0 {
+		dest.CcAddresses = ccs
+	}
+
+	if len(bccs) > 0 {
+		dest.BccAddresses = bccs
+	}
+
 	input := &ses.SendTemplatedEmailInput{
-		Source: aws.String(opts.Sender),
-		Destination: &ses.Destination{
-			ToAddresses:  toAddresses,
-			CcAddresses:  ccs,
-			BccAddresses: bccs,
-		},
+		Source:               aws.String(opts.Sender),
+		Destination:          dest,
 		Template:             aws.String(opts.Template),
 		ConfigurationSetName: opts.ConfigurationSet,
 	}
@@ -187,7 +195,6 @@ func (s *Service) SendEmail(opts *SendEmailOptions) (resp *SendEmailResponse) {
 	}
 
 	input.TemplateData = aws.String(string(templateDataJson))
-
 	_, err = client.SendTemplatedEmailWithContext(ctx, input)
 	if err != nil {
 		resp.Error = err
