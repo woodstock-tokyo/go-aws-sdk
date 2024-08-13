@@ -76,7 +76,8 @@ type ListSubscribersResponse struct {
 
 // Context context includes endpoint, region and other info
 type context struct {
-	region string
+	region   string
+	topicArn string
 }
 
 // Service service includes context and credentials
@@ -104,6 +105,17 @@ func (s *Service) SetRegion(region string) {
 // GetRegion get region
 func (s *Service) GetRegion() string {
 	return s.context.region
+}
+
+// SetTopicArn set topic arn
+func (s *Service) SetTopicArn(topicArn string) {
+	s.context.check()
+	s.context.topicArn = topicArn
+}
+
+// GetTopicArn get topic arn
+func (s *Service) GetTopicArn() string {
+	return s.context.topicArn
 }
 
 var once sync.Once
