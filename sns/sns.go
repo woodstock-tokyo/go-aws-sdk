@@ -62,6 +62,18 @@ type UnsubscribeResponse struct {
 	Error error
 }
 
+// ListSubscribersOptions options to list subscribers
+type ListSubscribersOptions struct {
+	TopicArn string
+	Timeout  time.Duration
+}
+
+// ListSubscribersResponse response for listing subscribers
+type ListSubscribersResponse struct {
+	Subscribers []*sns.Subscription
+	Error       error
+}
+
 // Context context includes endpoint, region and other info
 type context struct {
 	region string
@@ -212,6 +224,35 @@ func (s *Service) Unsubscribe(opts *UnsubscribeOptions) (resp *UnsubscribeRespon
 		resp.Error = err
 	}
 
+	return
+}
+
+// ListSubscribers lists all subscribers for a given SNS topic
+func (s *Service) ListSubscribers(opts *ListSubscribersOptions) (resp *ListSubscribersResponse) {
+	resp = new(ListSubscribersResponse)
+
+	client := s.client()
+	t := 30 * time.Second
+	if opts.Timeout > 0 {
+		t = opts.Timeout
+	}
+	ctx, cancel := goctx.WithTimeout(goctx.Background(), t)
+	defer cancel()
+
+	var subscriptions []*sns.Subscription
+	err := client.ListSubscriptionsByTopicPagesWithContext(ctx, &sns.ListSubscriptionsByTopicInput{
+		TopicArn: aws.String(opts.TopicArn),
+	}, func(page *sns.ListSubscriptionsByTopicOutput, lastPage bool) bool {
+		subscriptions = append(subscriptions, page.Subscriptions...)
+		return !lastPage
+	})
+
+	if err != nil {
+		resp.Error = err
+		return
+	}
+
+	resp.Subscribers = subscriptions
 	return
 }
 

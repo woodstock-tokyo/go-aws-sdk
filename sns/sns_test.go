@@ -3,6 +3,7 @@ package sns
 import (
 	"os"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -32,6 +33,27 @@ func TestSubscribe(t *testing.T) {
 	resp := svc.Subscribe(opts)
 	assert.NoError(t, resp.Error)
 	assert.NotEmpty(t, resp.SubscriptionArn)
+}
+
+func TestListSubscribers(t *testing.T) {
+	svc := NewService(os.Getenv("WS_SNS_AWS_ACCESS_KEY_ID"), os.Getenv("WS_SNS_AWS_SECRET_ACCESS_KEY"))
+	svc.SetRegion("ap-northeast-1")
+
+	opts := &ListSubscribersOptions{
+		TopicArn: "arn:aws:sns:ap-northeast-1:324792451081:push-notifications-all-users-stg",
+		Timeout:  10 * time.Second,
+	}
+
+	resp := svc.ListSubscribers(opts)
+	assert.NoError(t, resp.Error)
+	assert.NotNil(t, resp.Subscribers)
+	assert.GreaterOrEqual(t, len(resp.Subscribers), 1, "Expected at least one subscriber")
+
+	for _, sub := range resp.Subscribers {
+		assert.NotEmpty(t, *sub.SubscriptionArn)
+		assert.NotEmpty(t, *sub.Protocol)
+		assert.NotEmpty(t, *sub.Endpoint)
+	}
 }
 
 func TestUnsubscribe(t *testing.T) {
