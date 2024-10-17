@@ -2,6 +2,8 @@ package ses
 
 import (
 	"encoding/json"
+	"fmt"
+	"regexp"
 	"sync"
 	"time"
 
@@ -91,6 +93,16 @@ type GetTemplateResponse struct {
 	TemplateName *string
 	TextPart     *string
 	HtmlPart     *string
+}
+
+// GetTemplateOptions get templates options
+type GetTemplateVariableOptions struct {
+	TemplateName string
+}
+
+type GetTemplateVariableResponse struct {
+	Error     error
+	Variables []string
 }
 
 // Context context includes endpoint, region and other info
@@ -315,5 +327,26 @@ func (s *Service) GetTemplate(opts *GetTemplateOptions) (resp *GetTemplateRespon
 	resp.TextPart = result.Template.TextPart
 	resp.HtmlPart = result.Template.HtmlPart
 
+	return
+}
+
+// GetTemplateVariables retrieves template variables of an SES email template by name
+func (s *Service) GetTemplateVariables(opts *GetTemplateVariableOptions) (resp *GetTemplateVariableResponse) {
+	resp = new(GetTemplateVariableResponse)
+	client := s.client()
+	input := &ses.GetTemplateInput{
+		TemplateName: aws.String(opts.TemplateName),
+	}
+
+	result, err := client.GetTemplate(input)
+	if err != nil {
+		resp.Error = err
+		return
+	}
+
+	// Combine subject, text, and HTML parts into one string
+	templateContent := fmt.Sprintf("%s %s", *result.Template.SubjectPart, *result.Template.HtmlPart)
+	// Use a regular expression to find all placeholders in the template
+	resp.Variables = regexp.MustCompile(`{{(.*?)}}`).FindAllString(templateContent, -1)
 	return
 }

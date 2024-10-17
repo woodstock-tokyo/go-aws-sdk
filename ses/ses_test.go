@@ -79,6 +79,19 @@ func TestGetTemplate(t *testing.T) {
 	assert.Equal(t, *resp.SubjectPart, "test")
 }
 
+func TestGetTemplateVariables(t *testing.T) {
+	svc := NewService(os.Getenv("WS_SES_AWS_ACCESS_KEY_ID"), os.Getenv("WS_SES_AWS_SECRET_ACCESS_KEY"))
+	svc.SetRegion("ap-northeast-1")
+
+	resp := svc.GetTemplateVariables(&GetTemplateVariableOptions{
+		TemplateName: "test_template",
+	})
+
+	assert.NoError(t, resp.Error)
+	assert.Equal(t, 1, len(resp.Variables))
+	assert.Equal(t, "{{name}}", resp.Variables[0])
+}
+
 func TestDeleteTemplate(t *testing.T) {
 	svc := NewService(os.Getenv("WS_SES_AWS_ACCESS_KEY_ID"), os.Getenv("WS_SES_AWS_SECRET_ACCESS_KEY"))
 	svc.SetRegion("ap-northeast-1")
