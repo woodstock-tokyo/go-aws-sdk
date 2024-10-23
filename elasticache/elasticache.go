@@ -368,6 +368,38 @@ func ZRevRangeWithScore[T comparable, U any](s *Service, key string, start, end 
 	return
 }
 
+// ZRangeByScoreWithScore zrangebyscore with score
+func ZRangeByScoreWithScore[T comparable, U any](s *Service, key string, min, max int64) (members []T, scores []U, err error) {
+	conn := s.redisPool.Get()
+	defer conn.Close()
+
+	args := redis.Args{}.Add(key).Add(min).Add(max).Add("WITHSCORES")
+
+	strs, err := redis.Strings(conn.Do("ZRANGEBYSCORE", args...))
+	if err != nil {
+		return []T{}, []U{}, err
+	}
+
+	total := len(strs) / 2
+	for i := 0; i < total; i++ {
+		var t T
+		if err = json.Unmarshal([]byte(strs[2*i]), &t); err != nil {
+			fmt.Println("Failed to unmarshal member:", err)
+			continue
+		}
+		var u U
+		if err = json.Unmarshal([]byte(strs[2*i+1]), &u); err != nil {
+			fmt.Println("Failed to unmarshal score:", err)
+			continue
+		}
+
+		members = append(members, t)
+		scores = append(scores, u)
+	}
+
+	return
+}
+
 // ZScore zscore
 func ZScore[T any, U any](s *Service, key string, member T) (score *U, err error) {
 	conn := s.redisPool.Get()

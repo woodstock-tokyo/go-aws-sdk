@@ -1,7 +1,6 @@
 package elasticache
 
 import (
-	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -15,7 +14,7 @@ type Person struct {
 }
 
 func init() {
-	svc = NewService("woodstock.redis.cache.windows.net:6379", DialPassword(os.Getenv("WS_ELASTICACHE_PASSWORD")))
+	svc = NewService("localhost:6379")
 }
 
 // TestPing test redis ping
@@ -220,6 +219,29 @@ func TestZRangeWithScore(t *testing.T) {
 	for i, _member := range _members {
 		assert.Equal(t, members[i], _member, "ZRangeWithScore should return expected member")
 		assert.Equal(t, scores[i], _scores[i], "ZRangeWithScore should return expected score")
+		i++
+	}
+}
+
+// TestZRangeWithScore test redis ZRANGE
+func TestZRangeByScoreWithScore(t *testing.T) {
+	Delete(svc, "test")
+	scores := []float64{1.12, 3.5, 4.5, 5.5}
+	members := []Person{
+		{Name: "John", Age: 30},
+		{Name: "Jane", Age: 25},
+		{Name: "Jano", Age: 20},
+		{Name: "Jene", Age: 15},
+	}
+	_ = ZAdd(svc, "test", members, scores, 30)
+
+	_members, _scores, err := ZRangeByScoreWithScore[Person, float64](svc, "test", 0, 10)
+	assert.Nil(t, err, "ZRangeByScoreWithScore should not return error")
+	assert.Equal(t, 4, len(_members), "ZRangeByScoreWithScore should return expected length")
+
+	for i, _member := range _members {
+		assert.Equal(t, members[i], _member, "ZRangeByScoreWithScore should return expected member")
+		assert.Equal(t, scores[i], _scores[i], "ZRangeByScoreWithScore should return expected score")
 		i++
 	}
 }
