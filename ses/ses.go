@@ -300,6 +300,7 @@ func (s *Service) ListTemplates(opts *ListTemplatesOptions) (resp *ListTemplates
 	result, err := client.ListTemplates(input)
 	if err != nil {
 		resp.Error = err
+		return
 	}
 
 	for _, template := range result.TemplatesMetadata {
@@ -320,6 +321,7 @@ func (s *Service) GetTemplate(opts *GetTemplateOptions) (resp *GetTemplateRespon
 	result, err := client.GetTemplate(input)
 	if err != nil {
 		resp.Error = err
+		return
 	}
 
 	resp.SubjectPart = result.Template.SubjectPart
