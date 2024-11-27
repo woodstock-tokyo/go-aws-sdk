@@ -89,3 +89,5 @@ func main() {
 ## Async
 
 Use _AsyncSend_, _AsyncReceive_, _AsyncDelete_ to handle SQS operation request concurrently
+
+### Tobe added: SES, Agcod, CloudSearch ...
