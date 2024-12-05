@@ -23,6 +23,7 @@ type SendEmailOptions struct {
 	BCCs             []string
 	Template         string
 	TemplateData     map[string]string
+	Tag              map[string]string
 	ConfigurationSet *string
 	Timeout          time.Duration
 }
@@ -193,11 +194,20 @@ func (s *Service) SendEmail(opts *SendEmailOptions) (resp *SendEmailResponse) {
 		dest.BccAddresses = bccs
 	}
 
+	tags := []*ses.MessageTag{}
+	for k, v := range opts.Tag {
+		tags = append(tags, &ses.MessageTag{
+			Name:  aws.String(k),
+			Value: aws.String(v),
+		})
+	}
+
 	input := &ses.SendTemplatedEmailInput{
 		Source:               aws.String(opts.Sender),
 		Destination:          dest,
 		Template:             aws.String(opts.Template),
 		ConfigurationSetName: opts.ConfigurationSet,
+		Tags:                 tags,
 	}
 
 	templateDataJson, err := json.Marshal(opts.TemplateData)
