@@ -210,14 +210,16 @@ func (s *Service) SendEmail(opts *SendEmailOptions) (resp *SendEmailResponse) {
 		Tags:                 tags,
 	}
 
-	templateDataJson, err := json.Marshal(opts.TemplateData)
-	if err != nil {
-		resp.Error = err
-		return
+	if len(opts.TemplateData) > 0 {
+		templateDataJson, err := json.Marshal(opts.TemplateData)
+		if err != nil {
+			resp.Error = err
+			return
+		}
+		input.TemplateData = aws.String(string(templateDataJson))
 	}
 
-	input.TemplateData = aws.String(string(templateDataJson))
-	_, err = client.SendTemplatedEmailWithContext(ctx, input)
+	_, err := client.SendTemplatedEmailWithContext(ctx, input)
 	if err != nil {
 		resp.Error = err
 	}
