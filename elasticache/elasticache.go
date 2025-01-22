@@ -486,6 +486,18 @@ func Copy(s *Service, fromKey, toKey string) (err error) {
 	return
 }
 
+// Rename renames a key in
+func Rename(s *Service, oldKey, newKey string) error {
+	conn := s.redisPool.Get()
+	defer conn.Close()
+
+	_, err := conn.Do("RENAME", oldKey, newKey)
+	if err != nil {
+		return fmt.Errorf("failed to rename key from %s to %s: %w", oldKey, newKey, err)
+	}
+	return nil
+}
+
 // /////////////////////////////// PRIVATE ///////////////////////////////////////
 func newRedisPool(host string, options ...DialOption) *redis.Pool {
 	do := dialOptions{}

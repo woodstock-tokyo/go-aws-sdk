@@ -1,6 +1,7 @@
 package elasticache
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -281,4 +282,22 @@ func TestCopy(t *testing.T) {
 
 	value, _ := Get[string](svc, "test-2")
 	assert.Equal(t, value, "abc", "get should return abc")
+}
+
+// TestGet test redis set
+func TestRename(t *testing.T) {
+	value, err := Get[string](svc, "test-2")
+	assert.Nil(t, err, "get should not return error")
+	fmt.Println(value)
+
+	Rename(svc, "test-2", "test-3")
+	value, err = Get[string](svc, "test-3")
+	assert.Nil(t, err, "get should not return error")
+	fmt.Println(value)
+
+	Rename(svc, "test-3", "test-2")
+	value, err = Get[string](svc, "test-2")
+	assert.Nil(t, err, "get should not return error")
+	fmt.Println(value)
+
 }
