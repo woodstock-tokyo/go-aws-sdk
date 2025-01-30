@@ -79,7 +79,12 @@ func Get[T any](s *Service, key string) (data T, err error) {
 }
 
 // Set set
-func Set[T any](s *Service, key string, value T, ttlSeconds uint) error {
+func Set[T any](s *Service, key string, value T, ttlSeconds uint, nx ...bool) error {
+	_nx := false
+	if len(nx) == 1 {
+		_nx = nx[0]
+	}
+
 	conn := s.redisPool.Get()
 	defer conn.Close()
 
@@ -88,7 +93,11 @@ func Set[T any](s *Service, key string, value T, ttlSeconds uint) error {
 		return err
 	}
 
-	_, err = conn.Do("SET", key, jsonBytes)
+	if !_nx {
+		_, err = conn.Do("SET", key, jsonBytes)
+	} else {
+		_, err = conn.Do("SET", key, jsonBytes, "NX")
+	}
 
 	if ttlSeconds > 0 {
 		_, err = conn.Do("EXPIRE", key, ttlSeconds)
