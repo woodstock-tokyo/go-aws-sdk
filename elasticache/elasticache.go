@@ -482,6 +482,72 @@ func ZCount[U comparable](s *Service, key string, min *U, max *U) (count int, er
 	return
 }
 
+// HSet sets a field in a hash, overwriting if it already exists.
+func HSet[T any](s *Service, key, field string, value T) error {
+	conn := s.redisPool.Get()
+	defer conn.Close()
+
+	// Serialize the value to JSON
+	jsonBytes, err := json.Marshal(value)
+	if err != nil {
+		return fmt.Errorf("failed to marshal value for HSET: %w", err)
+	}
+
+	_, err = conn.Do("HSET", key, field, jsonBytes)
+	if err != nil {
+		return fmt.Errorf("failed to set field in hash: %w", err)
+	}
+
+	return nil
+}
+
+// HGet retrieves a field value from a Redis hash.
+func HGet[T any](s *Service, key, field string) (data T, err error) {
+	conn := s.redisPool.Get()
+	defer conn.Close()
+
+	// Get the value from Redis
+	value, err := redis.Bytes(conn.Do("HGET", key, field))
+	if err == redis.ErrNil {
+		return data, fmt.Errorf("field %s not found in hash %s", field, key) // Handle missing field case
+	} else if err != nil {
+		return data, fmt.Errorf("failed to retrieve field from hash: %w", err)
+	}
+
+	// Deserialize JSON into struct
+	err = json.Unmarshal(value, &data)
+	if err != nil {
+		return data, fmt.Errorf("failed to unmarshal HGET value: %w", err)
+	}
+
+	return data, nil
+}
+
+// HGetAll retrieves all key-value pairs from a Redis hash.
+func HGetAll[T any](s *Service, key string) (map[string]T, error) {
+	conn := s.redisPool.Get()
+	defer conn.Close()
+
+	// Retrieve all fields and values from the hash
+	data, err := redis.StringMap(conn.Do("HGETALL", key))
+	if err != nil {
+		return nil, fmt.Errorf("failed to retrieve hash: %w", err)
+	}
+
+	// Convert values to the desired struct type
+	result := make(map[string]T)
+	for field, jsonValue := range data {
+		var value T
+		err := json.Unmarshal([]byte(jsonValue), &value)
+		if err != nil {
+			return nil, fmt.Errorf("failed to unmarshal field %s: %w", field, err)
+		}
+		result[field] = value
+	}
+
+	return result, nil
+}
+
 // Copy copy
 func Copy(s *Service, fromKey, toKey string) (err error) {
 	args := redis.Args{}.Add(fromKey).Add(toKey)

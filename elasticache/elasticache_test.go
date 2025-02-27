@@ -299,5 +299,44 @@ func TestRename(t *testing.T) {
 	value, err = Get[string](svc, "test-2")
 	assert.Nil(t, err, "get should not return error")
 	fmt.Println(value)
+}
 
+func TestHSet(t *testing.T) {
+	person := Person{Name: "Alice", Age: 28}
+
+	err := HSet(svc, "test_hash", "Alice", person)
+	assert.Nil(t, err, "HSet should not return an error")
+}
+
+func TestHGet(t *testing.T) {
+	person, err := HGet[Person](svc, "test_hash", "Alice")
+	assert.Nil(t, err, "HGet should not return an error")
+	assert.Equal(t, "Alice", person.Name, "HGet should return the correct name")
+	assert.Equal(t, 28, person.Age, "HGet should return the correct age")
+}
+
+func TestHGetAll(t *testing.T) {
+	// Adding multiple entries
+	_ = HSet(svc, "test_hash", "Bob", Person{Name: "Bob", Age: 35})
+	_ = HSet(svc, "test_hash", "Charlie", Person{Name: "Charlie", Age: 40})
+
+	// Fetch all fields
+	data, err := HGetAll[Person](svc, "test_hash")
+	assert.Nil(t, err, "HGetAll should not return an error")
+	assert.Equal(t, 3, len(data), "HGetAll should return all stored items")
+	assert.Equal(t, 28, data["Alice"].Age, "HGetAll should return correct age for Alice")
+	assert.Equal(t, 35, data["Bob"].Age, "HGetAll should return correct age for Bob")
+	assert.Equal(t, 40, data["Charlie"].Age, "HGetAll should return correct age for Charlie")
+}
+
+func TestHSetOverwrite(t *testing.T) {
+	// Overwriting Alice's data
+	newPerson := Person{Name: "Alice", Age: 30}
+	err := HSet(svc, "test_hash", "Alice", newPerson)
+	assert.Nil(t, err, "HSet should not return an error when overwriting")
+
+	// Verify the new value
+	person, err := HGet[Person](svc, "test_hash", "Alice")
+	assert.Nil(t, err, "HGet should not return an error")
+	assert.Equal(t, 30, person.Age, "HSet should overwrite the previous value")
 }
