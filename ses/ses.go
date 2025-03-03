@@ -13,6 +13,10 @@ import (
 	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ses"
+
+	configv2 "github.com/aws/aws-sdk-go-v2/config"
+	credentialsv2 "github.com/aws/aws-sdk-go-v2/credentials"
+	sesv2 "github.com/aws/aws-sdk-go-v2/service/sesv2"
 )
 
 // SendEmailOptions send email options
@@ -106,6 +110,24 @@ type GetTemplateVariableResponse struct {
 	Variables []string
 }
 
+// GetSuppressedDestinationOptions defines options to check if an email is suppressed
+type GetSuppressedDestinationOptions struct {
+	NextToken string
+	PageSize  int32
+}
+
+// GetSuppressedDestinationResponse defines the response for suppressed email check
+type GetSuppressedDestinationResponse struct {
+	SuppressedEmail []*SuppressedEmail
+	NextToken       *string
+	Error           error
+}
+
+type SuppressedEmail struct {
+	Email  string
+	Reason string
+}
+
 // Context context includes endpoint, region and other info
 type context struct {
 	region string
@@ -138,21 +160,45 @@ func (s *Service) GetRegion() string {
 	return s.context.region
 }
 
-var once sync.Once
-var instance *ses.SES
+var oncev1 sync.Once
+var instancev1 *ses.SES
+
+var oncev2 sync.Once
+var instancev2 *sesv2.Client
 
 // client init client
 func (s *Service) client() *ses.SES {
-	once.Do(func() {
-		sess, _ := session.NewSession(&aws.Config{
+	oncev1.Do(func() {
+		sess, err := session.NewSession(&aws.Config{
 			Region:      aws.String(s.GetRegion()),
 			Credentials: credentials.NewStaticCredentials(s.accessKey, s.accessSecret, ""),
 		})
 
-		instance = ses.New(sess)
+		if err != nil {
+			panic("failed to load AWS configuration: " + err.Error())
+		}
+
+		instancev1 = ses.New(sess)
 	})
 
-	return instance
+	return instancev1
+}
+
+// client initializes AWS SESv2 client
+func (s *Service) clientv2() *sesv2.Client {
+	oncev2.Do(func() {
+		cfg, err := configv2.LoadDefaultConfig(goctx.TODO(),
+			configv2.WithRegion(s.GetRegion()),
+			configv2.WithCredentialsProvider(credentialsv2.NewStaticCredentialsProvider(s.accessKey, s.accessSecret, "")),
+		)
+		if err != nil {
+			panic("failed to load AWS configuration: " + err.Error())
+		}
+
+		instancev2 = sesv2.NewFromConfig(cfg)
+	})
+
+	return instancev2
 }
 
 // SendEmail send email
@@ -365,5 +411,37 @@ func (s *Service) GetTemplateVariables(opts *GetTemplateVariableOptions) (resp *
 	templateContent := fmt.Sprintf("%s %s", *result.Template.SubjectPart, *result.Template.HtmlPart)
 	// Use a regular expression to find all placeholders in the template
 	resp.Variables = regexp.MustCompile(`{{(.*?)}}`).FindAllString(templateContent, -1)
+	return
+}
+
+// GetSuppressedDestination checks if an email is in the AWS SES suppression list
+func (s *Service) GetSuppressedDestination(opts *GetSuppressedDestinationOptions) (resp *GetSuppressedDestinationResponse) {
+	resp = &GetSuppressedDestinationResponse{
+		SuppressedEmail: []*SuppressedEmail{},
+	}
+
+	client := s.clientv2()
+	input := new(sesv2.ListSuppressedDestinationsInput)
+	if opts.NextToken != "" {
+		input.NextToken = aws.String(opts.NextToken)
+	}
+	if opts.PageSize > 0 {
+		input.PageSize = aws.Int32(opts.PageSize)
+	}
+
+	result, err := client.ListSuppressedDestinations(goctx.TODO(), input)
+	if err != nil {
+		resp.Error = err
+		return resp
+	}
+
+	for _, destination := range result.SuppressedDestinationSummaries {
+		resp.SuppressedEmail = append(resp.SuppressedEmail, &SuppressedEmail{
+			Email:  *destination.EmailAddress,
+			Reason: string(destination.Reason),
+		})
+	}
+
+	resp.NextToken = result.NextToken
 	return
 }

@@ -111,3 +111,15 @@ func TestListTemplatesAgain(t *testing.T) {
 	assert.NoError(t, resp.Error)
 	assert.Equal(t, 0, len(resp.Templates))
 }
+
+func TestGetSuppressedDestination(t *testing.T) {
+	svc := NewService(os.Getenv("WS_SES_AWS_ACCESS_KEY_ID"), os.Getenv("WS_SES_AWS_SECRET_ACCESS_KEY"))
+	svc.SetRegion("ap-northeast-1")
+
+	opts := &GetSuppressedDestinationOptions{
+		PageSize: 100,
+	}
+	resp := svc.GetSuppressedDestination(opts)
+	assert.NoError(t, resp.Error)
+	assert.True(t, len(resp.SuppressedEmail) > 0)
+}
