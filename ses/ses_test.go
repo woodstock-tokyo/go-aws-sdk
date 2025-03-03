@@ -121,5 +121,5 @@ func TestGetSuppressedDestination(t *testing.T) {
 	}
 	resp := svc.GetSuppressedDestination(opts)
 	assert.NoError(t, resp.Error)
-	assert.True(t, len(resp.SuppressedEmail) > 0)
+	assert.True(t, len(resp.SuppressedEmailList) > 0)
 }

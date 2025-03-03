@@ -118,9 +118,9 @@ type GetSuppressedDestinationOptions struct {
 
 // GetSuppressedDestinationResponse defines the response for suppressed email check
 type GetSuppressedDestinationResponse struct {
-	SuppressedEmail []*SuppressedEmail
-	NextToken       *string
-	Error           error
+	SuppressedEmailList []*SuppressedEmail
+	NextToken           *string
+	Error               error
 }
 
 type SuppressedEmail struct {
@@ -417,7 +417,7 @@ func (s *Service) GetTemplateVariables(opts *GetTemplateVariableOptions) (resp *
 // GetSuppressedDestination checks if an email is in the AWS SES suppression list
 func (s *Service) GetSuppressedDestination(opts *GetSuppressedDestinationOptions) (resp *GetSuppressedDestinationResponse) {
 	resp = &GetSuppressedDestinationResponse{
-		SuppressedEmail: []*SuppressedEmail{},
+		SuppressedEmailList: []*SuppressedEmail{},
 	}
 
 	client := s.clientv2()
@@ -436,7 +436,7 @@ func (s *Service) GetSuppressedDestination(opts *GetSuppressedDestinationOptions
 	}
 
 	for _, destination := range result.SuppressedDestinationSummaries {
-		resp.SuppressedEmail = append(resp.SuppressedEmail, &SuppressedEmail{
+		resp.SuppressedEmailList = append(resp.SuppressedEmailList, &SuppressedEmail{
 			Email:  *destination.EmailAddress,
 			Reason: string(destination.Reason),
 		})
