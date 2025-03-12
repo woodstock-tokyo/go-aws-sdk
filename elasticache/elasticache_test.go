@@ -2,7 +2,9 @@ package elasticache
 
 import (
 	"fmt"
+	"sync"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -160,7 +162,7 @@ func TestZCount(t *testing.T) {
 	var min float64 = 1.12
 	var max float64 = 3.5
 
-	count, err := ZCount[float64](svc, "test", &min, &max)
+	count, err := ZCount(svc, "test", &min, &max)
 	assert.Nil(t, err, "ZCount should not return error")
 	assert.Equal(t, 3, count, "ZCount should return expected count")
 }
@@ -339,4 +341,101 @@ func TestHSetOverwrite(t *testing.T) {
 	person, err := HGet[Person](svc, "test_hash", "Alice")
 	assert.Nil(t, err, "HGet should not return an error")
 	assert.Equal(t, 30, person.Age, "HSet should overwrite the previous value")
+}
+
+// TestPublishSubscribe tests Redis Pub/Sub
+func TestPublishSubscribe(t *testing.T) {
+	channel := "test_pubsub"
+
+	// Use a wait group to synchronize message receiving
+	var wg sync.WaitGroup
+	wg.Add(1)
+
+	// Start subscriber
+	go func() {
+		err := Subscribe(svc, channel, func(msg string) {
+			assert.Equal(t, "Hello, Redis!", msg, "Received message should match published message")
+			wg.Done()
+		})
+		assert.Nil(t, err, "Subscribe should not return an error")
+	}()
+
+	// Wait briefly to ensure the subscriber is ready
+	time.Sleep(500 * time.Millisecond)
+
+	// Publish message
+	err := Publish(svc, channel, "Hello, Redis!")
+	assert.Nil(t, err, "Publish should not return an error")
+
+	// Wait for the message to be received
+	wg.Wait()
+}
+
+// TestSubscribeMultipleMessages tests Redis Pub/Sub with multiple messages
+func TestSubscribeMultipleMessages(t *testing.T) {
+	channel := "test_pubsub_multiple"
+	var receivedMessages []string
+	var mu sync.Mutex
+	var wg sync.WaitGroup
+
+	// Expecting 3 messages
+	wg.Add(3)
+
+	// Start subscriber
+	go func() {
+		err := Subscribe(svc, channel, func(msg string) {
+			mu.Lock()
+			receivedMessages = append(receivedMessages, msg)
+			mu.Unlock()
+			wg.Done()
+		})
+		assert.Nil(t, err, "Subscribe should not return an error")
+	}()
+
+	time.Sleep(500 * time.Millisecond)
+
+	// Publish multiple messages
+	messages := []string{"Message 1", "Message 2", "Message 3"}
+	for _, msg := range messages {
+		err := Publish(svc, channel, msg)
+		assert.Nil(t, err, "Publish should not return an error")
+	}
+
+	// Wait for all messages to be received
+	wg.Wait()
+
+	// Validate received messages
+	mu.Lock()
+	defer mu.Unlock()
+	assert.ElementsMatch(t, messages, receivedMessages, "All messages should be received correctly")
+}
+
+// TestSubscribeWithStruct tests Redis Pub/Sub with a struct (e.g., Person)
+func TestSubscribeWithStruct(t *testing.T) {
+	channel := "test_pubsub_struct"
+	expectedPerson := Person{Name: "Alice", Age: 28}
+	var receivedPerson Person
+	var wg sync.WaitGroup
+	wg.Add(1)
+
+	// Start subscriber
+	go func() {
+		err := Subscribe(svc, channel, func(person Person) {
+			receivedPerson = person
+			wg.Done()
+		})
+		assert.Nil(t, err, "Subscribe should not return an error")
+	}()
+
+	time.Sleep(500 * time.Millisecond)
+
+	// Publish struct message
+	err := Publish(svc, channel, expectedPerson)
+	assert.Nil(t, err, "Publish should not return an error")
+
+	// Wait for the message to be received
+	wg.Wait()
+
+	// Validate received struct
+	assert.Equal(t, expectedPerson, receivedPerson, "Received struct should match the published struct")
 }

@@ -573,6 +573,58 @@ func Rename(s *Service, oldKey, newKey string) error {
 	return nil
 }
 
+// Publish sends a message to a Redis Pub/Sub channel
+func Publish[T any](s *Service, channel string, message T) error {
+	conn := s.redisPool.Get()
+	defer conn.Close()
+
+	msgBytes, err := json.Marshal(message)
+	if err != nil {
+		return fmt.Errorf("failed to marshal message: %w", err)
+	}
+
+	_, err = conn.Do("PUBLISH", channel, msgBytes)
+	if err != nil {
+		return fmt.Errorf("failed to publish message to channel %s: %w", channel, err)
+	}
+
+	return nil
+}
+
+// Subscribe listens for messages on a Redis Pub/Sub channel and processes them with a callback
+func Subscribe[T any](s *Service, channel string, handler func(T)) error {
+	conn := s.redisPool.Get()
+	psc := redis.PubSubConn{Conn: conn}
+
+	// Subscribe to the channel
+	if err := psc.Subscribe(channel); err != nil {
+		conn.Close()
+		return fmt.Errorf("failed to subscribe to channel %s: %w", channel, err)
+	}
+
+	// Keep listening for messages
+	go func() {
+		defer conn.Close()
+		for {
+			switch v := psc.Receive().(type) {
+			case redis.Message:
+				var data T
+				if err := json.Unmarshal(v.Data, &data); err != nil {
+					fmt.Printf("Failed to unmarshal message: %v\n", err)
+					continue
+				}
+				handler(data) // Pass structured message to the handler function
+			case redis.Subscription:
+				fmt.Printf("Subscribed to %s (kind: %s, count: %d)\n", v.Channel, v.Kind, v.Count)
+			case error:
+				fmt.Printf("Redis Pub/Sub error: %v\n", v)
+				return
+			}
+		}
+	}()
+	return nil
+}
+
 // /////////////////////////////// PRIVATE ///////////////////////////////////////
 func newRedisPool(host string, options ...DialOption) *redis.Pool {
 	do := dialOptions{}
