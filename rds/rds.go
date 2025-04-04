@@ -2,6 +2,7 @@ package rds
 
 import (
 	goctx "context"
+	"fmt"
 	"sort"
 	"sync"
 	"time"
@@ -12,6 +13,12 @@ import (
 	"github.com/aws/aws-sdk-go/service/rds"
 )
 
+const (
+	DefaultDBClusterParameterGroupName = "woodstock-aurora-cluster-prod"
+	DefaultDBSubnetGroupName           = "main_subnet_group_prod_ap-northeast-1"
+	DefaultEngine                      = "aurora-mysql"
+)
+
 type DBSnapshotsType string
 
 const (
@@ -19,33 +26,35 @@ const (
 	DBSnapshotsTypeManual    DBSnapshotsType = "manual"
 )
 
-// DescribeDBSnapshotsOpts describe db snapshot options
-type DescribeDBSnapshotsOpts struct {
-	SnapshotType DBSnapshotsType
-	Timeout      time.Duration
+// DescribeDBClusterSnapshotsOpts describe db snapshot options
+type DescribeDBClusterSnapshotsOpts struct {
+	DBClusterIdentifier string
+	SnapshotType        DBSnapshotsType
+	Timeout             time.Duration
 }
 
-// DescribeDBSnapshotsResponse describe db snapshot response
-type DescribeDBSnapshotsResponse struct {
-	Snapshots []*rds.DBSnapshot
-	Error     error
+// DescribeDBClusterSnapshotsResponse describe db snapshot response
+type DescribeDBClusterSnapshotsResponse struct {
+	DBClusterIdentifier string
+	Snapshots           []*rds.DBClusterSnapshot
+	Error               error
 }
 
-// RestoreDBInstanceFromDBSnapshotOpts restore db instance from db snapshot options
-type RestoreDBInstanceFromDBSnapshotOpts struct {
-	SnapshotIdentifier string
-	Timeout            time.Duration
+// RestoreDBClusterFromSnapshotOpts restore db instance from db snapshot options
+type RestoreDBClusterFromSnapshotOpts struct {
+	DBClusterIdentifier string
+	SnapshotIdentifier  string
+	Timeout             time.Duration
 }
 
-// RestoreDBInstanceFromDBSnapshotResponse restore db instance from db snapshot response
-type RestoreDBInstanceFromDBSnapshotResponse struct {
+// RestoreDBClusterFromSnapshotResponse restore db instance from db snapshot response
+type RestoreDBClusterFromSnapshotResponse struct {
 	Error error
 }
 
 // Context context includes endpoint, region and bucket info
 type context struct {
-	identifier string
-	region     string
+	region string
 }
 
 // Service service includes context and credentials
@@ -62,17 +71,6 @@ func NewService(key, secret string) *Service {
 		accessKey:    key,
 		accessSecret: secret,
 	}
-}
-
-// SetIdentifier set identifier
-func (s *Service) SetIdentifier(identifier string) {
-	s.context.check()
-	s.context.identifier = identifier
-}
-
-// GetIdentifier get identifier
-func (s *Service) GetIdentifier() string {
-	return s.context.identifier
 }
 
 // SetRegion set region
@@ -104,10 +102,10 @@ func (s *Service) client() *rds.RDS {
 }
 
 // DescribeDBSnapshots describe db snapshots
-func (s *Service) DescribeDBSnapshots(opts *DescribeDBSnapshotsOpts) (resp *DescribeDBSnapshotsResponse) {
+func (s *Service) DescribeDBSnapshots(opts *DescribeDBClusterSnapshotsOpts) (resp *DescribeDBClusterSnapshotsResponse) {
 	s.context.check()
-	resp = &DescribeDBSnapshotsResponse{
-		Snapshots: []*rds.DBSnapshot{},
+	resp = &DescribeDBClusterSnapshotsResponse{
+		Snapshots: []*rds.DBClusterSnapshot{},
 	}
 
 	client := s.client()
@@ -116,25 +114,30 @@ func (s *Service) DescribeDBSnapshots(opts *DescribeDBSnapshotsOpts) (resp *Desc
 		t = opts.Timeout
 	}
 
+	snapshotType := string(DBSnapshotsTypeAutomated)
+	if opts.SnapshotType == DBSnapshotsTypeManual {
+		snapshotType = string(DBSnapshotsTypeManual)
+	}
+
 	ctx, cancel := goctx.WithTimeout(goctx.Background(), t)
 	defer cancel()
 
-	snapshotResp, err := client.DescribeDBSnapshotsWithContext(ctx, &rds.DescribeDBSnapshotsInput{
-		DBInstanceIdentifier: aws.String(s.context.identifier),
-		SnapshotType:         aws.String("automated"),
+	snapshotResp, err := client.DescribeDBClusterSnapshotsWithContext(ctx, &rds.DescribeDBClusterSnapshotsInput{
+		DBClusterIdentifier: aws.String(opts.DBClusterIdentifier),
+		SnapshotType:        aws.String(snapshotType),
 	})
 
 	if err != nil {
 		resp.Error = err
 	} else {
-		resp.Snapshots = snapshotResp.DBSnapshots
+		resp.Snapshots = snapshotResp.DBClusterSnapshots
 	}
 
 	return
 }
 
 // DescribeLatestDBSnapshot describe latest db snapshot
-func (s *Service) DescribeLatestDBSnapshot(opts *DescribeDBSnapshotsOpts) (snapshot *rds.DBSnapshot, err error) {
+func (s *Service) DescribeLatestDBSnapshot(opts *DescribeDBClusterSnapshotsOpts) (snapshot *rds.DBClusterSnapshot, err error) {
 	snapshotsResp := s.DescribeDBSnapshots(opts)
 	if snapshotsResp.Error != nil {
 		return nil, snapshotsResp.Error
@@ -151,11 +154,17 @@ func (s *Service) DescribeLatestDBSnapshot(opts *DescribeDBSnapshotsOpts) (snaps
 	return snapshotsResp.Snapshots[0], nil
 }
 
-// RestoreDBInstanceFromSnapshot restore db instance from db snapshot
-func (s *Service) RestoreDBInstanceFromSnapshot(opts *RestoreDBInstanceFromDBSnapshotOpts) (resp *RestoreDBInstanceFromDBSnapshotResponse) {
+// RestoreDBClusterFromSnapshot restore db instance from db snapshot
+func (s *Service) RestoreDBClusterFromSnapshot(opts *RestoreDBClusterFromSnapshotOpts) (resp *RestoreDBClusterFromSnapshotResponse) {
 	s.context.check()
+	if opts.DBClusterIdentifier == "woodstock-prod" {
+		return &RestoreDBClusterFromSnapshotResponse{
+			Error: fmt.Errorf("woodstock-prod db cluster cannot be restored"),
+		}
+	}
+
 	client := s.client()
-	t := 180 * time.Second
+	t := 30 * 60 * time.Second
 	if opts.Timeout > 0 {
 		t = opts.Timeout
 	}
@@ -163,9 +172,12 @@ func (s *Service) RestoreDBInstanceFromSnapshot(opts *RestoreDBInstanceFromDBSna
 	ctx, cancel := goctx.WithTimeout(goctx.Background(), t)
 	defer cancel()
 
-	_, err := client.RestoreDBInstanceFromDBSnapshotWithContext(ctx, &rds.RestoreDBInstanceFromDBSnapshotInput{
-		DBInstanceIdentifier: aws.String(s.context.identifier), // not the snapshot identifier, but the new instance identifier
-		DBSnapshotIdentifier: aws.String(opts.SnapshotIdentifier),
+	_, err := client.RestoreDBClusterFromSnapshotWithContext(ctx, &rds.RestoreDBClusterFromSnapshotInput{
+		DBClusterIdentifier:         aws.String(opts.DBClusterIdentifier),
+		SnapshotIdentifier:          aws.String(opts.SnapshotIdentifier),
+		DBClusterParameterGroupName: aws.String(DefaultDBClusterParameterGroupName),
+		DBSubnetGroupName:           aws.String(DefaultDBSubnetGroupName),
+		Engine:                      aws.String(DefaultEngine),
 	})
 
 	if err != nil {
