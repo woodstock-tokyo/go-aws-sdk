@@ -101,6 +101,32 @@ func TestSMembers(t *testing.T) {
 	assert.Equal(t, len(actual), len(expected), "SMembers should return expected value")
 }
 
+// TestSIsMember tests SIsMember for set existence
+func TestSIsMember(t *testing.T) {
+	key := "test_sismember"
+	Delete(svc, key)
+
+	person := Person{Name: "TestUser", Age: 99}
+
+	// Should return false before adding
+	exists, err := SIsMember(svc, key, person)
+	assert.Nil(t, err, "SIsMember should not return error before adding")
+	assert.False(t, exists, "SIsMember should return false for non-existing member")
+
+	// Add the person
+	err = SAdd(svc, key, []Person{person}, 30)
+	assert.Nil(t, err, "SAdd should not return error")
+
+	// Should return true after adding
+	exists, err = SIsMember(svc, key, person)
+	assert.Nil(t, err, "SIsMember should not return error after adding")
+	assert.True(t, exists, "SIsMember should return true for existing member")
+
+	// Cleanup
+	err = Delete(svc, key)
+	assert.Nil(t, err, "Delete should not return error")
+}
+
 // TestSRem test redis SREM
 func TestSRem(t *testing.T) {
 	people := []Person{

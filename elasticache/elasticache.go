@@ -242,6 +242,25 @@ func SMembers[T any](s *Service, key string) (members []T, err error) {
 	return
 }
 
+// SIsMember checks if a given member exists in the Redis set
+func SIsMember[T any](s *Service, key string, member T) (bool, error) {
+	conn := s.redisPool.Get()
+	defer conn.Close()
+
+	// Serialize the member to JSON
+	jsonBytes, err := json.Marshal(member)
+	if err != nil {
+		return false, fmt.Errorf("failed to marshal member for SISMEMBER: %w", err)
+	}
+
+	exists, err := redis.Bool(conn.Do("SISMEMBER", key, jsonBytes))
+	if err != nil {
+		return false, fmt.Errorf("SISMEMBER command failed: %w", err)
+	}
+
+	return exists, nil
+}
+
 // SRem srem
 // have to make it as a function instead of a method because of the generic type
 func SRem[T any](s *Service, key string, membersToRemove []T) (err error) {
