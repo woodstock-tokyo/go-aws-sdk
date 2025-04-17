@@ -191,6 +191,26 @@ func Incr(s *Service, counterKey string) (int, error) {
 	return redis.Int(conn.Do("INCR", counterKey))
 }
 
+// ZIncrBy increments the score of a member in a sorted set
+func ZIncrBy(s *Service, key string, increment float64, member string, ttlSeconds uint) error {
+	conn := s.redisPool.Get()
+	defer conn.Close()
+
+	_, err := conn.Do("ZINCRBY", key, increment, member)
+	if err != nil {
+		return fmt.Errorf("ZINCRBY failed: %w", err)
+	}
+
+	if ttlSeconds > 0 {
+		_, err = conn.Do("EXPIRE", key, ttlSeconds)
+		if err != nil {
+			return fmt.Errorf("EXPIRE failed after ZINCRBY: %w", err)
+		}
+	}
+
+	return nil
+}
+
 // SAdd sadd
 func SAdd[T any](s *Service, key string, members []T, ttlSeconds uint) (err error) {
 	// convert structs to strings (JSON)
