@@ -191,24 +191,21 @@ func Incr(s *Service, counterKey string) (int, error) {
 	return redis.Int(conn.Do("INCR", counterKey))
 }
 
-// ZIncrBy increments the score of a member in a sorted set
-func ZIncrBy(s *Service, key string, increment float64, member string, ttlSeconds uint) error {
+// ZIncrBy increments the score and returns the new score
+func ZIncrBy(s *Service, key string, increment float64, member string, ttlSeconds uint) (float64, error) {
 	conn := s.redisPool.Get()
 	defer conn.Close()
 
-	_, err := conn.Do("ZINCRBY", key, increment, member)
+	newScore, err := redis.Float64(conn.Do("ZINCRBY", key, increment, member))
 	if err != nil {
-		return fmt.Errorf("ZINCRBY failed: %w", err)
+		return 0, fmt.Errorf("ZINCRBY failed: %w", err)
 	}
 
 	if ttlSeconds > 0 {
-		_, err = conn.Do("EXPIRE", key, ttlSeconds)
-		if err != nil {
-			return fmt.Errorf("EXPIRE failed after ZINCRBY: %w", err)
-		}
+		_, _ = conn.Do("EXPIRE", key, ttlSeconds) // EXPIRE failure is non-fatal here
 	}
 
-	return nil
+	return newScore, nil
 }
 
 // SAdd sadd

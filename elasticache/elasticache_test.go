@@ -6,7 +6,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/gomodule/redigo/redis"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -110,17 +109,14 @@ func TestZIncrBy(t *testing.T) {
 	_ = Delete(svc, key)
 
 	// First increment
-	err := ZIncrBy(svc, key, 100.0, member, 60)
+	newScore, err := ZIncrBy(svc, key, 100.0, member, 60)
 	assert.Nil(t, err, "ZIncrBy should not return error on first increment")
+	assert.Equal(t, 100.0, newScore, "ZIncrBy should return correct new score after first increment")
 
 	// Second increment
-	err = ZIncrBy(svc, key, 50.0, member, 60)
+	newScore, err = ZIncrBy(svc, key, 50.0, member, 60)
 	assert.Nil(t, err, "ZIncrBy should not return error on second increment")
-
-	// Verify score
-	score, err := redis.Float64(svc.redisPool.Get().Do("ZSCORE", key, member))
-	assert.Nil(t, err, "ZSCORE should not return error")
-	assert.Equal(t, 150.0, score, "ZIncrBy should correctly accumulate score")
+	assert.Equal(t, 150.0, newScore, "ZIncrBy should return correct new score after second increment")
 }
 
 // TestSIsMember tests SIsMember for set existence
