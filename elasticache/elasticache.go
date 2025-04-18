@@ -1,6 +1,7 @@
 package elasticache
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"time"
@@ -628,7 +629,7 @@ func Publish[T any](s *Service, channel string, message T) error {
 }
 
 // Subscribe listens for messages on a Redis Pub/Sub channel and processes them with a callback
-func Subscribe[T any](s *Service, channel string, handler func(T)) error {
+func Subscribe[T any](s *Service, channel string, ctx context.Context, handler func(T)) error {
 	conn := s.redisPool.Get()
 	psc := redis.PubSubConn{Conn: conn}
 
@@ -639,25 +640,33 @@ func Subscribe[T any](s *Service, channel string, handler func(T)) error {
 	}
 
 	// Keep listening for messages
+	// Listen for messages in a separate goroutine
 	go func() {
 		defer conn.Close()
 		for {
-			switch v := psc.Receive().(type) {
-			case redis.Message:
-				var data T
-				if err := json.Unmarshal(v.Data, &data); err != nil {
-					fmt.Printf("Failed to unmarshal message: %v\n", err)
-					continue
-				}
-				handler(data) // Pass structured message to the handler function
-			case redis.Subscription:
-				fmt.Printf("Subscribed to %s (kind: %s, count: %d)\n", v.Channel, v.Kind, v.Count)
-			case error:
-				fmt.Printf("Redis Pub/Sub error: %v\n", v)
+			select {
+			case <-ctx.Done():
+				_ = psc.Unsubscribe(channel)
 				return
+			default:
+				switch v := psc.Receive().(type) {
+				case redis.Message:
+					var data T
+					if err := json.Unmarshal(v.Data, &data); err != nil {
+						fmt.Printf("Failed to unmarshal message: %v\n", err)
+						continue
+					}
+					handler(data)
+				case redis.Subscription:
+					fmt.Printf("Subscribed to %s (kind: %s, count: %d)\n", v.Channel, v.Kind, v.Count)
+				case error:
+					fmt.Printf("Redis Pub/Sub error: %v\n", v)
+					return
+				}
 			}
 		}
 	}()
+
 	return nil
 }
 
