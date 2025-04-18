@@ -1,6 +1,7 @@
 package elasticache
 
 import (
+	"context"
 	"fmt"
 	"sync"
 	"testing"
@@ -439,7 +440,7 @@ func TestPublishSubscribe(t *testing.T) {
 
 	// Start subscriber
 	go func() {
-		err := Subscribe(svc, channel, func(msg string) {
+		err := Subscribe(svc, channel, context.Background(), func(msg string) {
 			assert.Equal(t, "Hello, Redis!", msg, "Received message should match published message")
 			wg.Done()
 		})
@@ -469,7 +470,7 @@ func TestSubscribeMultipleMessages(t *testing.T) {
 
 	// Start subscriber
 	go func() {
-		err := Subscribe(svc, channel, func(msg string) {
+		err := Subscribe(svc, channel, context.Background(), func(msg string) {
 			mu.Lock()
 			receivedMessages = append(receivedMessages, msg)
 			mu.Unlock()
@@ -506,7 +507,7 @@ func TestSubscribeWithStruct(t *testing.T) {
 
 	// Start subscriber
 	go func() {
-		err := Subscribe(svc, channel, func(person Person) {
+		err := Subscribe(svc, channel, context.Background(), func(person Person) {
 			receivedPerson = person
 			wg.Done()
 		})
