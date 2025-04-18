@@ -278,6 +278,20 @@ func SIsMember[T any](s *Service, key string, member T) (bool, error) {
 	return exists, nil
 }
 
+// SCard returns the number of elements in the set
+// return -1 if the set does not exist
+func SCard(s *Service, key string) (int, error) {
+	conn := s.redisPool.Get()
+	defer conn.Close()
+
+	count, err := redis.Int(conn.Do("SCARD", key))
+	if err != nil {
+		return -1, fmt.Errorf("SCARD command failed: %w", err)
+	}
+
+	return count, nil
+}
+
 // SRem srem
 // have to make it as a function instead of a method because of the generic type
 func SRem[T any](s *Service, key string, membersToRemove []T) (err error) {

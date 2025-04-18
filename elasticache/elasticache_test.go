@@ -145,6 +145,26 @@ func TestSIsMember(t *testing.T) {
 	assert.Nil(t, err, "Delete should not return error")
 }
 
+func TestSCard(t *testing.T) {
+	people := []Person{
+		{Name: "John", Age: 30},
+		{Name: "Jane", Age: 25},
+	}
+	key := "test_scard"
+
+	Delete(svc, key)
+
+	err := SAdd(svc, key, people, 30)
+	assert.Nil(t, err, "SAdd should not return error")
+
+	count, err := SCard(svc, key)
+	assert.Nil(t, err, "SCard should not return error")
+	assert.Equal(t, count, 2, "SCard should return expected value")
+
+	err = Delete(svc, key)
+	assert.Nil(t, err, "Delete should not return error")
+}
+
 // TestSRem test redis SREM
 func TestSRem(t *testing.T) {
 	people := []Person{
