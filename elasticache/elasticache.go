@@ -505,6 +505,19 @@ func ZRank[T any](s *Service, key string, member T) (rank int, err error) {
 	return rank, err
 }
 
+// ZCard zcard
+func ZCard(s *Service, key string) (count int, err error) {
+	conn := s.redisPool.Get()
+	defer conn.Close()
+
+	count, err = redis.Int(conn.Do("ZCARD", key))
+	if err != nil {
+		return -1, err
+	}
+
+	return count, nil
+}
+
 // ZCount zcount
 func ZCount[U comparable](s *Service, key string, min *U, max *U) (count int, err error) {
 	conn := s.redisPool.Get()
