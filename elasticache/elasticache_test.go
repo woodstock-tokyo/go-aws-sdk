@@ -145,6 +145,26 @@ func TestSIsMember(t *testing.T) {
 	assert.Nil(t, err, "Delete should not return error")
 }
 
+func TestSCard(t *testing.T) {
+	people := []Person{
+		{Name: "John", Age: 30},
+		{Name: "Jane", Age: 25},
+	}
+	key := "test_scard"
+
+	Delete(svc, key)
+
+	err := SAdd(svc, key, people, 30)
+	assert.Nil(t, err, "SAdd should not return error")
+
+	count, err := SCard(svc, key)
+	assert.Nil(t, err, "SCard should not return error")
+	assert.Equal(t, count, 2, "SCard should return expected value")
+
+	err = Delete(svc, key)
+	assert.Nil(t, err, "Delete should not return error")
+}
+
 // TestSRem test redis SREM
 func TestSRem(t *testing.T) {
 	people := []Person{
@@ -190,6 +210,28 @@ func TestZRem(t *testing.T) {
 
 	err := ZRem(svc, "test", members[0:2])
 	assert.Nil(t, err, "ZRem should not return error")
+}
+
+// TestZCard test redis ZCARD
+func TestZCard(t *testing.T) {
+	people := []Person{
+		{Name: "John", Age: 30},
+		{Name: "Jane", Age: 25},
+	}
+	scores := []float64{30, 25}
+	key := "test_zcard"
+
+	Delete(svc, key)
+
+	err := ZAdd(svc, key, people, scores, 30)
+	assert.Nil(t, err, "ZAdd should not return error")
+
+	count, err := ZCard(svc, key)
+	assert.Nil(t, err, "ZCard should not return error")
+	assert.Equal(t, count, 2, "ZCard should return expected value")
+
+	err = Delete(svc, key)
+	assert.Nil(t, err, "Delete should not return error")
 }
 
 // TestZCount test redis ZCOUNT
