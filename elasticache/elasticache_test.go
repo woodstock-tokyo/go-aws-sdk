@@ -430,6 +430,36 @@ func TestHSetOverwrite(t *testing.T) {
 	assert.Equal(t, 30, person.Age, "HSet should overwrite the previous value")
 }
 
+func TestLPushAndLRange(t *testing.T) {
+	key := "test_person_list"
+	_ = Delete(svc, key)
+
+	people := []Person{
+		{Name: "Alice", Age: 28},
+		{Name: "Bob", Age: 35},
+		{Name: "Charlie", Age: 42},
+	}
+
+	// Push to Redis list
+	for _, p := range people {
+		err := LPush(svc, key, p)
+		assert.Nil(t, err, "LPush should not return error")
+	}
+
+	// Fetch top 2 recent
+	results, err := LRange[Person](svc, key, 0, 1)
+	assert.Nil(t, err, "LRange should not return error")
+	assert.Equal(t, 2, len(results), "Should return 2 most recent entries")
+
+	// LPUSH means newest first
+	assert.Equal(t, "Charlie", results[0].Name)
+	assert.Equal(t, "Bob", results[1].Name)
+
+	// Clean up
+	err = Delete(svc, key)
+	assert.Nil(t, err, "Delete should not return error")
+}
+
 // TestPublishSubscribe tests Redis Pub/Sub
 func TestPublishSubscribe(t *testing.T) {
 	channel := "test_pubsub"

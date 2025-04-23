@@ -612,6 +612,40 @@ func HGetAll[T any](s *Service, key string) (map[string]T, error) {
 	return result, nil
 }
 
+// LPush pushes a value to the left of a Redis list.
+func LPush[T any](s *Service, key string, value T) error {
+	conn := s.redisPool.Get()
+	defer conn.Close()
+
+	jsonBytes, err := json.Marshal(value)
+	if err != nil {
+		return err
+	}
+
+	_, err = conn.Do("LPUSH", key, jsonBytes)
+	return err
+}
+
+// LRange retrieves a range of values from a Redis list and unmarshals them into the provided type.
+func LRange[T any](s *Service, key string, start, stop int) ([]T, error) {
+	conn := s.redisPool.Get()
+	defer conn.Close()
+
+	values, err := redis.ByteSlices(conn.Do("LRANGE", key, start, stop))
+	if err != nil {
+		return nil, err
+	}
+
+	var result []T
+	for _, v := range values {
+		var item T
+		if err := json.Unmarshal(v, &item); err == nil {
+			result = append(result, item)
+		}
+	}
+	return result, nil
+}
+
 // Copy copy
 func Copy(s *Service, fromKey, toKey string) (err error) {
 	args := redis.Args{}.Add(fromKey).Add(toKey)
