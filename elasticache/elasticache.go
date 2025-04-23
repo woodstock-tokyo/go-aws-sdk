@@ -192,18 +192,24 @@ func Incr(s *Service, counterKey string) (int, error) {
 	return redis.Int(conn.Do("INCR", counterKey))
 }
 
-// ZIncrBy increments the score and returns the new score
-func ZIncrBy(s *Service, key string, increment float64, member string, ttlSeconds uint) (float64, error) {
+func ZIncrBy[T any](s *Service, key string, increment float64, member T, ttlSeconds uint) (float64, error) {
 	conn := s.redisPool.Get()
 	defer conn.Close()
 
-	newScore, err := redis.Float64(conn.Do("ZINCRBY", key, increment, member))
+	// Marshal the member to JSON string
+	jsonBytes, err := json.Marshal(member)
+	if err != nil {
+		return 0, fmt.Errorf("failed to marshal member for ZINCRBY: %w", err)
+	}
+	memberStr := string(jsonBytes)
+
+	newScore, err := redis.Float64(conn.Do("ZINCRBY", key, increment, memberStr))
 	if err != nil {
 		return 0, fmt.Errorf("ZINCRBY failed: %w", err)
 	}
 
 	if ttlSeconds > 0 {
-		_, _ = conn.Do("EXPIRE", key, ttlSeconds) // EXPIRE failure is non-fatal here
+		_, _ = conn.Do("EXPIRE", key, ttlSeconds)
 	}
 
 	return newScore, nil

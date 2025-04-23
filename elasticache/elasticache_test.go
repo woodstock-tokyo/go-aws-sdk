@@ -2,6 +2,7 @@ package elasticache
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"sync"
 	"testing"
@@ -103,19 +104,23 @@ func TestSMembers(t *testing.T) {
 }
 
 func TestZIncrBy(t *testing.T) {
-	key := "test_zincrby"
-	member := "user:123"
+	key := "test_zincrby_struct"
+	member := Person{Name: "Alice", Age: 30}
 
 	// Clean up before test
 	_ = Delete(svc, key)
 
+	// Serialize the member (Person) to JSON
+	memberStr, err := json.Marshal(member)
+	assert.Nil(t, err, "marshal should not return error")
+
 	// First increment
-	newScore, err := ZIncrBy(svc, key, 100.0, member, 60)
+	newScore, err := ZIncrBy(svc, key, 100.0, string(memberStr), 60)
 	assert.Nil(t, err, "ZIncrBy should not return error on first increment")
 	assert.Equal(t, 100.0, newScore, "ZIncrBy should return correct new score after first increment")
 
 	// Second increment
-	newScore, err = ZIncrBy(svc, key, 50.0, member, 60)
+	newScore, err = ZIncrBy(svc, key, 50.0, string(memberStr), 60)
 	assert.Nil(t, err, "ZIncrBy should not return error on second increment")
 	assert.Equal(t, 150.0, newScore, "ZIncrBy should return correct new score after second increment")
 }
