@@ -561,3 +561,37 @@ func TestSubscribeWithStruct(t *testing.T) {
 	// Validate received struct
 	assert.Equal(t, expectedPerson, receivedPerson, "Received struct should match the published struct")
 }
+
+func TestZRemRangeByScore(t *testing.T) {
+	key := "test_zremrangebyscore"
+	scores := []float64{1.0, 2.0, 3.0, 4.0, 5.0}
+	members := []Person{
+		{Name: "Alice", Age: 25},
+		{Name: "Bob", Age: 30},
+		{Name: "Charlie", Age: 35},
+		{Name: "David", Age: 40},
+		{Name: "Eve", Age: 45},
+	}
+
+	// Clean up before test
+	_ = Delete(svc, key)
+
+	// Add members to the sorted set
+	err := ZAdd(svc, key, members, scores, 30)
+	assert.Nil(t, err, "ZAdd should not return error")
+
+	// Remove members with scores between 2.0 and 4.0
+	err = ZRemRangeByScore(svc, key, 2.0, 4.0)
+	assert.Nil(t, err, "ZRemRangeByScore should not return error")
+
+	// Verify remaining members
+	remainingMembers, remainingScores, err := ZRangeWithScore[Person, float64](svc, key, 0, -1)
+	assert.Nil(t, err, "ZRangeWithScore should not return error")
+	assert.Equal(t, 2, len(remainingMembers), "ZRemRangeByScore should leave 2 members")
+
+	// Check that the remaining members are correct
+	assert.Equal(t, members[0], remainingMembers[0], "Remaining member should match")
+	assert.Equal(t, scores[0], remainingScores[0], "Remaining score should match")
+	assert.Equal(t, members[4], remainingMembers[1], "Remaining member should match")
+	assert.Equal(t, scores[4], remainingScores[1], "Remaining score should match")
+}

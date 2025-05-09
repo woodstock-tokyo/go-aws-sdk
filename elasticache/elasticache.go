@@ -552,6 +552,19 @@ func ZCount[U comparable](s *Service, key string, min *U, max *U) (count int, er
 	return
 }
 
+// ZRemRangeByScore removes members in a sorted set within the given score range.
+func ZRemRangeByScore(s *Service, key string, min, max float64) error {
+	conn := s.redisPool.Get()
+	defer conn.Close()
+
+	_, err := conn.Do("ZREMRANGEBYSCORE", key, min, max)
+	if err != nil {
+		return fmt.Errorf("ZREMRANGEBYSCORE command failed: %w", err)
+	}
+
+	return nil
+}
+
 // HSet sets a field in a hash, overwriting if it already exists.
 func HSet[T any](s *Service, key, field string, value T) error {
 	conn := s.redisPool.Get()
