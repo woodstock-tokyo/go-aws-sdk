@@ -730,7 +730,10 @@ func Subscribe[T any](s *Service, channel string, ctx context.Context, handler f
 			case <-ctx.Done():
 				_ = psc.Unsubscribe(channel)
 				return
-			case v := <-pubsubChan:
+			case v, ok := <-pubsubChan:
+				if !ok {
+					return // Channel closed, and release the conn
+				}
 				var data T
 				if err := json.Unmarshal(v.Data, &data); err != nil {
 					fmt.Printf("Failed to unmarshal message: %v\n", err)
