@@ -725,10 +725,10 @@ func Subscribe[T any](s *Service, channel string, ctx context.Context, handler f
 	// Subscriber
 	go func() {
 		defer conn.Close()
+		defer psc.Unsubscribe(channel)
 		for {
 			select {
 			case <-ctx.Done():
-				_ = psc.Unsubscribe(channel)
 				return
 			case v, ok := <-pubsubChan:
 				if !ok {
