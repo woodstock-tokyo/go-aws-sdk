@@ -753,28 +753,45 @@ func Subscribe[T any](s *Service, channel string, ctx context.Context, handler f
 
 	// Keep listening for messages
 	// Listen for messages in a separate goroutine
+	pubsubChan := make(chan redis.Message, 100)
+	// Subscriber
 	go func() {
 		defer conn.Close()
+		defer psc.Unsubscribe(channel)
 		for {
 			select {
 			case <-ctx.Done():
-				_ = psc.Unsubscribe(channel)
 				return
-			default:
-				switch v := psc.Receive().(type) {
-				case redis.Message:
-					var data T
-					if err := json.Unmarshal(v.Data, &data); err != nil {
-						fmt.Printf("Failed to unmarshal message: %v\n", err)
-						continue
-					}
-					handler(data)
-				case redis.Subscription:
-					fmt.Printf("Subscribed to %s (kind: %s, count: %d)\n", v.Channel, v.Kind, v.Count)
-				case error:
-					fmt.Printf("Redis Pub/Sub error: %v\n", v)
+			case v, ok := <-pubsubChan:
+				if !ok {
+					return // Channel closed, and release the conn
+				}
+				var data T
+				if err := json.Unmarshal(v.Data, &data); err != nil {
+					fmt.Printf("Failed to unmarshal message: %v\n", err)
+					continue
+				}
+				handler(data)
+			}
+		}
+	}()
+
+	// Publisher
+	go func() {
+		defer close(pubsubChan)
+		for {
+			_v := psc.Receive()
+			switch v := _v.(type) {
+			case redis.Message:
+				pubsubChan <- v
+			case redis.Subscription:
+				fmt.Printf("Subscription message to %s (kind: %s, count: %d)\n", v.Channel, v.Kind, v.Count)
+				if v.Kind == "unsubscribe" || v.Kind == "punsubscribe" {
 					return
 				}
+			case error:
+				fmt.Printf("Redis Pub/Sub error: %v\n", v)
+				return
 			}
 		}
 	}()
