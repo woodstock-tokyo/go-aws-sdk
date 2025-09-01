@@ -318,7 +318,6 @@ func TestZRangeWithScore(t *testing.T) {
 	}
 }
 
-// TestZRangeWithScore test redis ZRANGE
 func TestZRangeByScoreWithScore(t *testing.T) {
 	Delete(svc, "test")
 	scores := []float64{1.12, 3.5, 4.5, 5.5}
@@ -330,18 +329,25 @@ func TestZRangeByScoreWithScore(t *testing.T) {
 	}
 	_ = ZAdd(svc, "test", members, scores, 30)
 
-	_members, _scores, err := ZRangeByScoreWithScore[Person, float64](svc, "test", 0, 10)
+	// No limit/offset
+	_members, _scores, err := ZRangeByScoreWithScore[Person, float64](svc, "test", 0, 10, 0, 0)
 	assert.Nil(t, err, "ZRangeByScoreWithScore should not return error")
 	assert.Equal(t, 4, len(_members), "ZRangeByScoreWithScore should return expected length")
-
 	for i, _member := range _members {
 		assert.Equal(t, members[i], _member, "ZRangeByScoreWithScore should return expected member")
 		assert.Equal(t, scores[i], _scores[i], "ZRangeByScoreWithScore should return expected score")
-		i++
 	}
+
+	// With limit and offset
+	_members, _scores, err = ZRangeByScoreWithScore[Person, float64](svc, "test", 0, 10, 2, 1) // offset=1, limit=2
+	assert.Nil(t, err, "ZRangeByScoreWithScore (limit/offset) should not return error")
+	assert.Equal(t, 2, len(_members), "ZRangeByScoreWithScore (limit/offset) should return expected length")
+	assert.Equal(t, members[1], _members[0], "ZRangeByScoreWithScore (limit/offset) should return expected member")
+	assert.Equal(t, scores[1], _scores[0], "ZRangeByScoreWithScore (limit/offset) should return expected score")
+	assert.Equal(t, members[2], _members[1], "ZRangeByScoreWithScore (limit/offset) should return expected member")
+	assert.Equal(t, scores[2], _scores[1], "ZRangeByScoreWithScore (limit/offset) should return expected score")
 }
 
-// TestZRevRangeWithScore test redis ZREVRANGE
 func TestZRevRangeWithScore(t *testing.T) {
 	scores := []float64{1.12, 3.5, 4.5, 5.5}
 	members := []Person{
@@ -388,17 +394,25 @@ func TestZRevRangeByScoreWithScore(t *testing.T) {
 	}
 	expectedScores := []float64{5.5, 4.5, 3.5, 1.12}
 
-	_members, _scores, err := ZRevRangeByScoreWithScore[Person, float64](svc, "test", 10, 0)
+	// No limit/offset
+	_members, _scores, err := ZRevRangeByScoreWithScore[Person, float64](svc, "test", 10, 0, 0, 0)
 	assert.Nil(t, err, "ZRevRangeByScoreWithScore should not return error")
 	assert.Equal(t, 4, len(_members), "ZRevRangeByScoreWithScore should return expected length")
-
 	for i, _member := range _members {
 		assert.Equal(t, expectedMembers[i], _member, "ZRevRangeByScoreWithScore should return expected member")
 		assert.Equal(t, expectedScores[i], _scores[i], "ZRevRangeByScoreWithScore should return expected score")
 	}
+
+	// With limit and offset
+	_members, _scores, err = ZRevRangeByScoreWithScore[Person, float64](svc, "test", 10, 0, 2, 1) // offset=1, limit=2
+	assert.Nil(t, err, "ZRevRangeByScoreWithScore (limit/offset) should not return error")
+	assert.Equal(t, 2, len(_members), "ZRevRangeByScoreWithScore (limit/offset) should return expected length")
+	assert.Equal(t, expectedMembers[1], _members[0], "ZRevRangeByScoreWithScore (limit/offset) should return expected member")
+	assert.Equal(t, expectedScores[1], _scores[0], "ZRevRangeByScoreWithScore (limit/offset) should return expected score")
+	assert.Equal(t, expectedMembers[2], _members[1], "ZRevRangeByScoreWithScore (limit/offset) should return expected member")
+	assert.Equal(t, expectedScores[2], _scores[1], "ZRevRangeByScoreWithScore (limit/offset) should return expected score")
 }
 
-// TestCopy test redis COPY
 func TestCopy(t *testing.T) {
 	_ = Set(svc, "test", "abc", 30)
 	err := Copy(svc, "test", "test-2")

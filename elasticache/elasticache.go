@@ -434,12 +434,15 @@ func ZRevRangeWithScore[T comparable, U any](s *Service, key string, start, end 
 	return
 }
 
-// ZRangeByScoreWithScore zrangebyscore with score
-func ZRangeByScoreWithScore[T comparable, U any](s *Service, key string, min, max int64) (members []T, scores []U, err error) {
+// ZRangeByScoreWithScore zrangebyscore with score, supports LIMIT
+func ZRangeByScoreWithScore[T comparable, U any](s *Service, key string, min, max int64, limit, offset int) (members []T, scores []U, err error) {
 	conn := s.redisPool.Get()
 	defer conn.Close()
 
 	args := redis.Args{}.Add(key).Add(min).Add(max).Add("WITHSCORES")
+	if limit > 0 {
+		args = args.Add("LIMIT").Add(offset).Add(limit)
+	}
 
 	strs, err := redis.Strings(conn.Do("ZRANGEBYSCORE", args...))
 	if err != nil {
@@ -447,7 +450,7 @@ func ZRangeByScoreWithScore[T comparable, U any](s *Service, key string, min, ma
 	}
 
 	total := len(strs) / 2
-	for i := range total {
+	for i := 0; i < total; i++ {
 		var t T
 		if err = json.Unmarshal([]byte(strs[2*i]), &t); err != nil {
 			fmt.Println("Failed to unmarshal member:", err)
@@ -466,12 +469,15 @@ func ZRangeByScoreWithScore[T comparable, U any](s *Service, key string, min, ma
 	return
 }
 
-// ZRevRangeByScoreWithScore zrevrangebyscore with score
-func ZRevRangeByScoreWithScore[T comparable, U any](s *Service, key string, max, min int64) (members []T, scores []U, err error) {
+// ZRevRangeByScoreWithScore zrevrangebyscore with score, supports LIMIT
+func ZRevRangeByScoreWithScore[T comparable, U any](s *Service, key string, max, min int64, limit, offset int) (members []T, scores []U, err error) {
 	conn := s.redisPool.Get()
 	defer conn.Close()
 
 	args := redis.Args{}.Add(key).Add(max).Add(min).Add("WITHSCORES")
+	if limit > 0 {
+		args = args.Add("LIMIT").Add(offset).Add(limit)
+	}
 
 	strs, err := redis.Strings(conn.Do("ZREVRANGEBYSCORE", args...))
 	if err != nil {
@@ -479,7 +485,7 @@ func ZRevRangeByScoreWithScore[T comparable, U any](s *Service, key string, max,
 	}
 
 	total := len(strs) / 2
-	for i := range total {
+	for i := 0; i < total; i++ {
 		var t T
 		if err = json.Unmarshal([]byte(strs[2*i]), &t); err != nil {
 			fmt.Println("Failed to unmarshal member:", err)
