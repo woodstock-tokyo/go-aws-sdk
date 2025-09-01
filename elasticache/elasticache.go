@@ -447,7 +447,39 @@ func ZRangeByScoreWithScore[T comparable, U any](s *Service, key string, min, ma
 	}
 
 	total := len(strs) / 2
-	for i := 0; i < total; i++ {
+	for i := range total {
+		var t T
+		if err = json.Unmarshal([]byte(strs[2*i]), &t); err != nil {
+			fmt.Println("Failed to unmarshal member:", err)
+			continue
+		}
+		var u U
+		if err = json.Unmarshal([]byte(strs[2*i+1]), &u); err != nil {
+			fmt.Println("Failed to unmarshal score:", err)
+			continue
+		}
+
+		members = append(members, t)
+		scores = append(scores, u)
+	}
+
+	return
+}
+
+// ZRevRangeByScoreWithScore zrevrangebyscore with score
+func ZRevRangeByScoreWithScore[T comparable, U any](s *Service, key string, max, min int64) (members []T, scores []U, err error) {
+	conn := s.redisPool.Get()
+	defer conn.Close()
+
+	args := redis.Args{}.Add(key).Add(max).Add(min).Add("WITHSCORES")
+
+	strs, err := redis.Strings(conn.Do("ZREVRANGEBYSCORE", args...))
+	if err != nil {
+		return []T{}, []U{}, err
+	}
+
+	total := len(strs) / 2
+	for i := range total {
 		var t T
 		if err = json.Unmarshal([]byte(strs[2*i]), &t); err != nil {
 			fmt.Println("Failed to unmarshal member:", err)

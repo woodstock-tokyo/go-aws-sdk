@@ -368,6 +368,36 @@ func TestZRevRangeWithScore(t *testing.T) {
 	}
 }
 
+func TestZRevRangeByScoreWithScore(t *testing.T) {
+	Delete(svc, "test")
+	scores := []float64{1.12, 3.5, 4.5, 5.5}
+	members := []Person{
+		{Name: "John", Age: 30},
+		{Name: "Jane", Age: 25},
+		{Name: "Jano", Age: 20},
+		{Name: "Jene", Age: 15},
+	}
+	_ = ZAdd(svc, "test", members, scores, 30)
+
+	// Expect descending order by score
+	expectedMembers := []Person{
+		{Name: "Jene", Age: 15},
+		{Name: "Jano", Age: 20},
+		{Name: "Jane", Age: 25},
+		{Name: "John", Age: 30},
+	}
+	expectedScores := []float64{5.5, 4.5, 3.5, 1.12}
+
+	_members, _scores, err := ZRevRangeByScoreWithScore[Person, float64](svc, "test", 10, 0)
+	assert.Nil(t, err, "ZRevRangeByScoreWithScore should not return error")
+	assert.Equal(t, 4, len(_members), "ZRevRangeByScoreWithScore should return expected length")
+
+	for i, _member := range _members {
+		assert.Equal(t, expectedMembers[i], _member, "ZRevRangeByScoreWithScore should return expected member")
+		assert.Equal(t, expectedScores[i], _scores[i], "ZRevRangeByScoreWithScore should return expected score")
+	}
+}
+
 // TestCopy test redis COPY
 func TestCopy(t *testing.T) {
 	_ = Set(svc, "test", "abc", 30)
