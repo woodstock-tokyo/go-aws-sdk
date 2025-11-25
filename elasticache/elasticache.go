@@ -670,7 +670,7 @@ func HGetAll[T any](s *Service, key string) (map[string]T, error) {
 }
 
 // LPush pushes a value to the left of a Redis list.
-func LPush[T any](s *Service, key string, value T) error {
+func LPush[T any](s *Service, key string, value T, ttlSeconds int) error {
 	conn := s.redisPool.Get()
 	defer conn.Close()
 
@@ -680,6 +680,13 @@ func LPush[T any](s *Service, key string, value T) error {
 	}
 
 	_, err = conn.Do("LPUSH", key, jsonBytes)
+	if err != nil {
+		return err
+	}
+
+	if ttlSeconds > 0 {
+		_, err = conn.Do("EXPIRE", key, ttlSeconds)
+	}
 	return err
 }
 

@@ -491,7 +491,7 @@ func TestLPushAndLRange(t *testing.T) {
 
 	// Push to Redis list
 	for _, p := range people {
-		err := LPush(svc, key, p)
+		err := LPush(svc, key, p, 0)
 		assert.Nil(t, err, "LPush should not return error")
 	}
 
