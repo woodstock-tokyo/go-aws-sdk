@@ -4,8 +4,8 @@ import (
 	"os"
 	"testing"
 
+	"github.com/aws/aws-sdk-go/aws"
 	"github.com/stretchr/testify/assert"
-	. "github.com/woodstock-tokyo/woodstock-utils"
 )
 
 var svc *Service
@@ -22,7 +22,7 @@ func TestDescribeLatestDBSnapshot(t *testing.T) {
 	})
 
 	assert.NoError(t, err)
-	assert.Equal(t, Ptov(snapshot.DBClusterIdentifier), "woodstock-prod")
+	assert.Equal(t, aws.StringValue(snapshot.DBClusterIdentifier), "woodstock-prod")
 }
 
 func TestRestoreDBClusterFromSnapshot(t *testing.T) {
@@ -33,7 +33,7 @@ func TestRestoreDBClusterFromSnapshot(t *testing.T) {
 
 	resp := svc.RestoreDBClusterFromSnapshot(&RestoreDBClusterFromSnapshotOpts{
 		DBClusterIdentifier: "woodstock-pre-prod",
-		SnapshotIdentifier:  Ptov(snapshot.DBClusterSnapshotIdentifier),
+		SnapshotIdentifier:  aws.StringValue(snapshot.DBClusterSnapshotIdentifier),
 	})
 	assert.NoError(t, resp.Error)
 }

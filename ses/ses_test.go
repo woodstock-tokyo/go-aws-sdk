@@ -4,8 +4,8 @@ import (
 	"os"
 	"testing"
 
+	"github.com/aws/aws-sdk-go/aws"
 	"github.com/stretchr/testify/assert"
-	. "github.com/woodstock-tokyo/woodstock-utils"
 )
 
 func TestCreateTemplate(t *testing.T) {
@@ -15,7 +15,7 @@ func TestCreateTemplate(t *testing.T) {
 	opts := &CreateTemplateOptions{
 		TemplateName: "test_template",
 		Subject:      "test",
-		HTML:         Vtop("<html><body><h1>Hello {{name}}</h1></body></html>"),
+		HTML:         aws.String("<html><body><h1>Hello {{name}}</h1></body></html>"),
 	}
 
 	resp := svc.CreateTemplate(opts)
@@ -29,7 +29,7 @@ func TestUpdateTemplate(t *testing.T) {
 	opts := &UpdateTemplateOptions{
 		TemplateName: "test_template",
 		Subject:      "test",
-		HTML:         Vtop("<html><body><h1>Hello {{name}} - New Template</h1></body></html>"),
+		HTML:         aws.String("<html><body><h1>Hello {{name}} - New Template</h1></body></html>"),
 	}
 
 	resp := svc.UpdateTemplate(opts)
@@ -50,7 +50,7 @@ func TestSendMail(t *testing.T) {
 		TemplateData: map[string]string{
 			"name": "Dear Valued Customer",
 		},
-		ConfigurationSet: Vtop("managed-dedicated-ip"),
+		ConfigurationSet: aws.String("managed-dedicated-ip"),
 	}
 
 	resp := svc.SendEmail(opts)
