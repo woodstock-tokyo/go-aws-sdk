@@ -4,10 +4,13 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
+	"github.com/alicebob/miniredis/v2"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -18,8 +21,19 @@ type Person struct {
 	Age  int
 }
 
-func init() {
-	svc = NewService("localhost:6379")
+// TestMain runs the suite against an in-memory redis.
+func TestMain(m *testing.M) {
+	mr, err := miniredis.Run()
+	if err != nil {
+		panic(err)
+	}
+	svc = NewService(mr.Addr())
+
+	code := m.Run()
+
+	svc.Close()
+	mr.Close()
+	os.Exit(code)
 }
 
 // TestPing test redis ping
@@ -77,6 +91,58 @@ func TestGetAgain(t *testing.T) {
 	value, err := Get[string](svc, "test")
 	assert.Error(t, err, "get should return error")
 	assert.Equal(t, value, "", "get should return empty")
+}
+
+// TestGetDel test redis atomic get and delete
+func TestGetDel(t *testing.T) {
+	err := Set(svc, "test_getdel", "abcde", 30)
+	assert.Nil(t, err, "set should not return error")
+
+	value, err := GetDel[string](svc, "test_getdel")
+	assert.Nil(t, err, "getdel should not return error")
+	assert.Equal(t, value, "abcde", "getdel should return expected value")
+
+	exists, err := Exists(svc, "test_getdel")
+	assert.Nil(t, err, "exists should not return error")
+	assert.False(t, exists, "getdel should delete the key")
+}
+
+// TestGetDelStruct test redis atomic get and delete with a struct value
+func TestGetDelStruct(t *testing.T) {
+	err := Set(svc, "test_getdel_struct", Person{Name: "john", Age: 30}, 30)
+	assert.Nil(t, err, "set should not return error")
+
+	value, err := GetDel[Person](svc, "test_getdel_struct")
+	assert.Nil(t, err, "getdel should not return error")
+	assert.Equal(t, value, Person{Name: "john", Age: 30}, "getdel should return expected value")
+}
+
+// TestGetDelMissingKey test getdel on a missing key
+func TestGetDelMissingKey(t *testing.T) {
+	value, err := GetDel[string](svc, "test_getdel_missing")
+	assert.Error(t, err, "getdel should return error for a missing key")
+	assert.Equal(t, value, "", "getdel should return empty")
+}
+
+// TestGetDelConcurrent test that only one of the concurrent getdel callers can read the value
+func TestGetDelConcurrent(t *testing.T) {
+	err := Set(svc, "test_getdel_concurrent", "abcde", 30)
+	assert.Nil(t, err, "set should not return error")
+
+	var wg sync.WaitGroup
+	var successCount int32
+	for range 20 {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			if value, err := GetDel[string](svc, "test_getdel_concurrent"); err == nil {
+				assert.Equal(t, value, "abcde", "getdel should return expected value")
+				atomic.AddInt32(&successCount, 1)
+			}
+		}()
+	}
+	wg.Wait()
+	assert.Equal(t, int32(1), successCount, "exactly one concurrent getdel should succeed")
 }
 
 // TestSAdd test redis SADD

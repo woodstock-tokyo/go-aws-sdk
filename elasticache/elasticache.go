@@ -79,6 +79,20 @@ func Get[T any](s *Service, key string) (data T, err error) {
 	return
 }
 
+// GetDel atomically get and delete, so concurrent callers cannot read the same value twice
+func GetDel[T any](s *Service, key string) (data T, err error) {
+	conn := s.redisPool.Get()
+	defer conn.Close()
+
+	value, err := redis.Bytes(conn.Do("GETDEL", key))
+	if err != nil {
+		return
+	}
+
+	err = json.Unmarshal(value, &data)
+	return
+}
+
 // Set set
 func Set[T any](s *Service, key string, value T, ttlSeconds uint, nx ...bool) error {
 	_nx := false
