@@ -6,8 +6,7 @@ import (
 	"github.com/gomodule/redigo/redis"
 )
 
-// ErrNil is returned when a requested hash field does not exist.
-// FieldNotFoundError wraps ErrNil with the specific key/field that was missing.
+// FieldNotFoundError wraps redis.ErrNil with the specific key/field that was missing.
 // Sentinel check — works because Unwrap returns ErrNil
 // Use below to check for this condition.
 // ```
