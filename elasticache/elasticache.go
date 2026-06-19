@@ -644,7 +644,7 @@ func HGet[T any](s *Service, key, field string) (data T, err error) {
 	// Get the value from Redis
 	value, err := redis.Bytes(conn.Do("HGET", key, field))
 	if err == redis.ErrNil {
-		return data, fmt.Errorf("field %s not found in hash %s", field, key) // Handle missing field case
+		return data, &FieldNotFoundError{Key: key, Field: field}
 	} else if err != nil {
 		return data, fmt.Errorf("failed to retrieve field from hash: %w", err)
 	}
