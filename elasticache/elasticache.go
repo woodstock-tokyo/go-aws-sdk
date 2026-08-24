@@ -362,6 +362,57 @@ func ZAdd[T any, U comparable](s *Service, key string, members []T, scores []U, 
 	return
 }
 
+// ZAddNXAndTrimByRank adds a member if it does not already exist and trims
+// the sorted set to its newest maxEntries members atomically.
+func ZAddNXAndTrimByRank[T any, U comparable](s *Service, key string, member T, score U, maxEntries int) (err error) {
+	memberBytes, err := json.Marshal(member)
+	if err != nil {
+		return err
+	}
+
+	conn := s.redisPool.Get()
+	defer func() {
+		if err != nil {
+			_, _ = conn.Do("DISCARD")
+		}
+		_ = conn.Close()
+	}()
+
+	if err = conn.Send("MULTI"); err != nil {
+		return err
+	}
+	if err = conn.Send("ZADD", key, "NX", score, memberBytes); err != nil {
+		return err
+	}
+	if err = conn.Send("ZREMRANGEBYRANK", key, 0, -(maxEntries + 1)); err != nil {
+		return err
+	}
+	if err = conn.Send("EXEC"); err != nil {
+		return err
+	}
+	if err = conn.Flush(); err != nil {
+		return err
+	}
+
+	for range 3 {
+		if _, err = conn.Receive(); err != nil {
+			return err
+		}
+	}
+
+	var replies []any
+	if replies, err = redis.Values(conn.Receive()); err != nil {
+		return err
+	}
+	for _, reply := range replies {
+		if commandErr, ok := reply.(redis.Error); ok {
+			return commandErr
+		}
+	}
+
+	return nil
+}
+
 // ZRem zrem
 func ZRem[T any](s *Service, key string, membersToRemove []T) (err error) {
 	// convert structs to strings (JSON)
