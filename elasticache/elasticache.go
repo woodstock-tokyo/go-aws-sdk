@@ -12,12 +12,25 @@ import (
 // Service service includes context and credentials
 type Service struct {
 	redisPool *redis.Pool
+	dial      func(context.Context) (redis.Conn, error)
 }
 
 // dialOptions internal dial options
 type dialOptions struct {
-	username string
-	password string
+	username       string
+	password       string
+	connectTimeout time.Duration
+	writeTimeout   time.Duration
+}
+
+// DialConnectTimeout bounds connection establishment.
+func DialConnectTimeout(timeout time.Duration) DialOption {
+	return DialOption{func(do *dialOptions) { do.connectTimeout = timeout }}
+}
+
+// DialWriteTimeout bounds writes to Redis.
+func DialWriteTimeout(timeout time.Duration) DialOption {
+	return DialOption{func(do *dialOptions) { do.writeTimeout = timeout }}
 }
 
 // DialOption specifies an option for dialing a Redis server.
@@ -44,6 +57,7 @@ func NewService(host string, options ...DialOption) *Service {
 	pool := newRedisPool(host, options...)
 	return &Service{
 		redisPool: pool,
+		dial:      pool.DialContext,
 	}
 }
 
@@ -880,8 +894,14 @@ func newRedisPool(host string, options ...DialOption) *redis.Pool {
 	return &redis.Pool{
 		MaxIdle:     3,
 		IdleTimeout: 240 * time.Second,
-		Dial: func() (redis.Conn, error) {
+		DialContext: func(ctx context.Context) (redis.Conn, error) {
 			dailOptions := []redis.DialOption{}
+			if do.connectTimeout > 0 {
+				dailOptions = append(dailOptions, redis.DialConnectTimeout(do.connectTimeout))
+			}
+			if do.writeTimeout > 0 {
+				dailOptions = append(dailOptions, redis.DialWriteTimeout(do.writeTimeout))
+			}
 			if do.username != "" {
 				dailOptions = append(dailOptions, redis.DialUsername(do.username))
 			}
@@ -889,10 +909,10 @@ func newRedisPool(host string, options ...DialOption) *redis.Pool {
 				dailOptions = append(dailOptions, redis.DialPassword(do.password))
 			}
 
-			return redis.Dial("tcp", host, dailOptions...)
+			return redis.DialContext(ctx, "tcp", host, dailOptions...)
 		},
-		TestOnBorrow: func(c redis.Conn, t time.Time) error {
-			_, err := c.Do("PING")
+		TestOnBorrowContext: func(ctx context.Context, c redis.Conn, t time.Time) error {
+			_, err := redis.DoContext(c, ctx, "PING")
 			return err
 		},
 	}

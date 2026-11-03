@@ -12,8 +12,8 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/sesv2 v1.43.0
 	github.com/cenkalti/backoff/v4 v4.1.3
 	github.com/gofrs/uuid v4.2.0+incompatible
-	github.com/gomodule/redigo v1.8.8
-	github.com/stretchr/testify v1.7.2
+	github.com/gomodule/redigo v1.9.3
+	github.com/stretchr/testify v1.8.4
 )
 
 require (
