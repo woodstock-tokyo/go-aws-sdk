@@ -65,6 +65,27 @@ func Ping(s *Service) error {
 	return nil
 }
 
+// Eval executes a Lua script using keys as KEYS and args as ARGV.
+// Arguments are sent without JSON marshaling; scripts writing values read by
+// typed helpers such as Get or HGet must use JSON-encoded values.
+// The Redis reply is returned without conversion so callers can use the
+// appropriate redis conversion helper for the script's return type.
+func Eval(s *Service, script string, keys []string, args ...interface{}) (interface{}, error) {
+	conn := s.redisPool.Get()
+	defer conn.Close()
+
+	evalArgs := redis.Args{}.
+		Add(script).
+		Add(len(keys)).
+		AddFlat(keys).
+		AddFlat(args)
+	reply, err := conn.Do("EVAL", evalArgs...)
+	if err != nil {
+		return nil, fmt.Errorf("error executing Redis EVAL: %w", err)
+	}
+	return reply, nil
+}
+
 // Get get
 func Get[T any](s *Service, key string) (data T, err error) {
 	conn := s.redisPool.Get()

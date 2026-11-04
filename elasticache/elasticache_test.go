@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/alicebob/miniredis/v2"
+	"github.com/gomodule/redigo/redis"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -40,6 +41,27 @@ func TestMain(m *testing.M) {
 func TestPing(t *testing.T) {
 	err := Ping(svc)
 	assert.Nil(t, err, "ping should not return error")
+}
+
+func TestEval(t *testing.T) {
+	key := "test_eval"
+	assert.NoError(t, Delete(svc, key))
+
+	reply, err := Eval(
+		svc,
+		`redis.call('SET', KEYS[1], ARGV[1]); return redis.call('GET', KEYS[1])`,
+		[]string{key},
+		`"eval-value"`,
+	)
+	assert.NoError(t, err)
+	value, err := redis.String(reply, nil)
+	assert.NoError(t, err)
+	assert.Equal(t, `"eval-value"`, value)
+
+	decoded, err := Get[string](svc, key)
+	assert.NoError(t, err)
+	assert.Equal(t, "eval-value", decoded)
+	assert.NoError(t, Delete(svc, key))
 }
 
 // TestSet test redis set
