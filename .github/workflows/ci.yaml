@@ -32,3 +32,6 @@ jobs:
 
       - name: Test elasticache with the Go CLI
         run: go test ./elasticache/ -run Test -v
+
+      - name: Test context-aware Secrets Manager client
+        run: go test -race ./secretsmanager/v2

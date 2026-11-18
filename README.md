@@ -90,4 +90,43 @@ func main() {
 
 Use _AsyncSend_, _AsyncReceive_, _AsyncDelete_ to handle SQS operation request concurrently
 
+## Secrets Manager (AWS SDK v2)
+
+Use `github.com/woodstock-tokyo/go-aws-sdk/secretsmanager/v2` for new
+context-aware integrations. It supports the standard AWS credential/region
+chains, including IAM roles and temporary session tokens; static access keys
+are not required.
+
+```go
+import (
+    "context"
+
+    "github.com/woodstock-tokyo/go-aws-sdk/secretsmanager/v2"
+)
+
+func loadSecret(ctx context.Context, secretID string) (string, error) {
+    client, err := secretsmanager.New(ctx)
+    if err != nil {
+        return "", err
+    }
+    return client.SecretString(ctx, secretID)
+}
+```
+
+Create and reuse a client rather than constructing one per call. `New` accepts
+the SDK's config load options; `NewFromConfig` accepts explicit configuration
+and service options, and `NewWithAPI` enables testing with an injected client.
+Each client has independent region/credential configuration, not a global
+singleton. `SecretString` returns the raw secret without assuming a JSON schema,
+rejects empty/binary-only values and forwards request cancellation/deadlines.
+It does not log secret values. Errors wrap SDK causes, so callers should redact
+provider details before logging or returning them to untrusted clients.
+
+The legacy `secretsmanager.NewService` API is unchanged. Tests for the new
+package use mocks and a loopback HTTP server, not live AWS credentials:
+
+```sh
+go test -race ./secretsmanager/v2
+```
+
 ### Tobe added: SES, Agcod, CloudSearch ...
