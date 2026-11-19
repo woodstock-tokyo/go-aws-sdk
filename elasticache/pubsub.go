@@ -32,6 +32,10 @@ type SubscriptionOptions struct {
 	OnSubscribed  func()
 	OnError       func(error)
 	RetryInterval time.Duration
+	// Optional transport liveness checks; zero preserves the existing behavior.
+	PingInterval            time.Duration
+	ReadTimeout             time.Duration
+	DisconnectOnDecodeError bool
 }
 
 // SubscribeContext blocks until cancellation and reconnects after connection
@@ -41,10 +45,19 @@ type SubscriptionOptions struct {
 // subscription and periodically. Use a primary endpoint for notifications.
 func SubscribeContext[T any](ctx context.Context, s *Service, channel string, handler func(T), options SubscriptionOptions) error {
 	return subscribeWithRetry(ctx, func() error {
-		conn, err := s.dial(ctx)
-		if err != nil {
-			return err
-		}
+		return SubscribeOnceContext(ctx, s, channel, handler, options)
+	}, options)
+}
+
+// SubscribeOnceContext confirms SUBSCRIBE before OnSubscribed, then receives
+// until cancellation or transport failure. It does not reconnect; callers can
+// invalidate their state before opening another subscription.
+func SubscribeOnceContext[T any](ctx context.Context, s *Service, channel string, handler func(T), options SubscriptionOptions) error {
+	if options.PingInterval < 0 || options.ReadTimeout < 0 ||
+		(options.PingInterval > 0 && options.ReadTimeout > 0 && options.ReadTimeout <= options.PingInterval) {
+		return fmt.Errorf("invalid subscription heartbeat intervals")
+	}
+	return s.WithConnectionContext(ctx, func(conn redis.Conn) error {
 		return receiveSubscription(ctx, conn, channel, func(data []byte) error {
 			var message T
 			if err := json.Unmarshal(data, &message); err != nil {
@@ -53,7 +66,7 @@ func SubscribeContext[T any](ctx context.Context, s *Service, channel string, ha
 			handler(message)
 			return nil
 		}, options)
-	}, options)
+	})
 }
 
 func receiveSubscription(ctx context.Context, conn redis.Conn, channel string, handler func([]byte) error, options SubscriptionOptions) error {
@@ -62,16 +75,50 @@ func receiveSubscription(ctx context.Context, conn redis.Conn, channel string, h
 	if err := psc.Subscribe(channel); err != nil {
 		return err
 	}
+	pingCtx, stopPing := context.WithCancel(ctx)
+	pingDone := make(chan struct{})
+	go func() {
+		defer close(pingDone)
+		if options.PingInterval == 0 {
+			return
+		}
+		ticker := time.NewTicker(options.PingInterval)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-pingCtx.Done():
+				return
+			case <-ticker.C:
+				if err := psc.Ping("subscription-heartbeat"); err != nil {
+					conn.Close()
+					return
+				}
+			}
+		}
+	}()
+	defer func() { stopPing(); conn.Close(); <-pingDone }()
 	for {
-		switch message := psc.ReceiveContext(ctx).(type) {
+		var reply interface{}
+		if options.ReadTimeout > 0 {
+			reply = psc.ReceiveWithTimeout(options.ReadTimeout)
+		} else {
+			reply = psc.ReceiveContext(ctx)
+		}
+		switch message := reply.(type) {
 		case redis.Subscription:
 			if message.Kind == "subscribe" && message.Channel == channel && options.OnSubscribed != nil {
 				options.OnSubscribed()
 			}
 		case redis.Message:
 			if message.Channel == channel {
-				if err := handler(message.Data); err != nil && options.OnError != nil {
-					options.OnError(fmt.Errorf("decode pub/sub message: %w", err))
+				if err := handler(message.Data); err != nil {
+					err = fmt.Errorf("decode pub/sub message: %w", err)
+					if options.DisconnectOnDecodeError {
+						return err
+					}
+					if options.OnError != nil {
+						options.OnError(err)
+					}
 				}
 			}
 		case error:
